@@ -263,6 +263,187 @@ hermes/
 
 ---
 
+## Marco 7 — Tela de Comparação Visual (`/versus`)
+
+> Critério: abrir `/versus` e ver duas animações lado a lado, em loop, contando a história do problema e da solução sem nenhuma palavra ser dita.
+
+**Objetivo no pitch:** usar durante o "problema humano" (0:00–1:00) — o juiz vê ao vivo o ônibus passando sem parar vs. o sistema avisando o motorista.
+
+---
+
+### 7.0 Testes (escrever ANTES da implementação — TDD)
+
+- [ ] `test_versus_returns_200` — `GET /versus` responde 200
+- [ ] `test_versus_contains_before_canvas` — HTML contém `id="c-before"`
+- [ ] `test_versus_contains_after_canvas` — HTML contém `id="c-after"`
+- [ ] `test_versus_contains_comparison_title` — HTML contém a palavra "Compara"
+
+---
+
+### 7.1 Rota no servidor (`backend/app.py`)
+
+- [ ] Adicionar `GET /versus` → `send_from_directory(FRONTEND_DIR, "versus.html")`
+- [ ] Confirmar que os 4 testes do 7.0 passam
+
+---
+
+### 7.2 Estrutura HTML (`frontend/versus.html`)
+
+Arquivo auto-contido (CSS inline + JS inline). Nenhuma dependência externa além de `style.css`.
+
+- [ ] Header: logo `HERMES` + título "Comparação: Sistema Atual vs HERMES" + link `← Demo ao vivo` para `/demo`
+- [ ] Layout de 3 colunas: `[painel esquerdo] [divisor VS] [painel direito]`
+- [ ] Painel esquerdo: tag `Hoje` (cinza), título, `<canvas id="c-before" width="560" height="300">`, bloco de stats, card de métrica vermelha ("~32 min espera")
+- [ ] Painel direito: tag `HERMES` (âmbar), título, `<canvas id="c-after" width="560" height="300">`, bloco de stats, card de métrica verde ("< 2 min resposta")
+- [ ] Divisor central: badge circular "VS"
+
+---
+
+### 7.3 CSS adicional (inline em `versus.html`)
+
+- [ ] `.comparison-layout` — `display: grid; grid-template-columns: 1fr auto 1fr`
+- [ ] `.panel-comp` — padding interno
+- [ ] `.panel-tag` — pequeno badge colorido acima do título
+  - `.tag-before` — cinza
+  - `.tag-after` — âmbar (usando `var(--accent)`)
+- [ ] `.key-metric` — card com borda colorida e valor grande
+  - `.metric-before` — borda/texto vermelho
+  - `.metric-after` — borda/texto verde
+- [ ] `.vs-badge` — círculo com "VS" no divisor
+- [ ] `canvas` — `width: 100%; height: auto; border-radius: 8px; background: #0a0c14`
+
+---
+
+### 7.4 Constantes e helpers JS
+
+- [ ] `CYCLE = 12000` — duração do ciclo em ms
+- [ ] `ROAD_TOP_FRAC = 0.60` — road começa a 60% da altura do canvas
+- [ ] `SIDE_TOP_FRAC = 0.48` — calçada começa a 48%
+- [ ] `STOP_X_FRAC = 0.32` — ponto de parada a 32% da largura
+- [ ] `BUS_W = 100, BUS_H = 50` — dimensões do ônibus em px
+- [ ] `function lerp(a, b, t)` — interpolação linear com clamping
+- [ ] `function easeOut(t)` — `1 - (1-t)²` (desacelera ao final)
+- [ ] `function easeIn(t)` — `t²` (acelera ao final)
+- [ ] `function fadeIn(t, start, end)` — alpha 0→1 entre dois pontos do ciclo
+- [ ] `function fadeOut(t, start, end)` — alpha 1→0 entre dois pontos do ciclo
+
+---
+
+### 7.5 Funções de desenho no canvas
+
+Cada função recebe `(ctx, W, H, ...)` — sem estado global de desenho.
+
+- [ ] **`drawBackground(ctx, W, H)`**
+  - Gradiente escuro (céu): `y=0` a `y=H*SIDE_TOP_FRAC`
+  - 8 estrelas fixas (pontos brancos 1px)
+  - Calçada cinza escuro: `y=H*SIDE_TOP_FRAC` a `y=H*ROAD_TOP_FRAC`
+  - Pista cinza médio: `y=H*ROAD_TOP_FRAC` a `y=H`
+  - Linha tracejada branca no centro da pista
+  - Linha de meio-fio separando calçada e pista
+
+- [ ] **`drawBusStop(ctx, W, H, glowAlpha)`**
+  - Poste vertical: da calçada até `poleTopY`
+  - Teto do abrigo: retângulo no topo do poste
+  - Banco: retângulo + duas pernas
+  - Texto "BUS / STOP" no alto do poste
+  - Quando `glowAlpha > 0`: tudo fica âmbar; halo radial atrás do abrigo
+
+- [ ] **`drawPerson(ctx, W, H, state, animT)`**
+  - Sombra elíptica nos pés
+  - Cabeça: círculo
+  - Corpo: linha vertical
+  - Pernas: duas linhas para os pés
+  - Braços variam conforme `state`:
+    - `'waiting'` — braços caídos, rosto neutro
+    - `'waving'` — braço direito oscila com `Math.sin(now * 8)`, rosto neutro
+    - `'sad'` — braços caídos, boca curva para baixo, lágrimas azuis
+    - `'tap'` — braço direito estendido ao poste (âmbar), cartão RFID na mão, rosto feliz
+    - `'boarding'` — `globalAlpha` decresce com `animT` (some gradualmente)
+
+- [ ] **`drawBus(ctx, W, H, busX, variant, alertAlpha)`**
+  - Sai se `busX > W+10` ou `busX < -BUS_W-10` (fora da tela)
+  - Sombra elíptica sob as rodas
+  - Carroceria arredondada (`roundRect`)
+  - 3 janelas laterais + 1 para-brisa
+  - Farol dianteiro (branco) + lanterna traseira (vermelho)
+  - 2 rodas com aro + centro
+  - Plaquinha de linha "110 UnB" no teto
+  - Cor da carroceria: cinza escuro para `'before'`, azul escuro para `'after'`
+  - Badge de alerta (quando `alertAlpha > 0`):
+    - Fundo âmbar `roundRect` acima da carroceria
+    - Texto `"♿ Embarque"`
+    - Linha tracejada apontando para o ônibus
+    - Halo radial ao redor do badge
+
+- [ ] **`drawRipple(ctx, x, y, progress)`**
+  - 3 anéis concêntricos, cada um com delay de `0.15` no `progress`
+  - Raio máximo = 35px; alpha decresce conforme o anel expande
+  - Cor âmbar `rgba(245, 166, 35, α)`
+
+- [ ] **`drawSignalPulse(ctx, fromX, toX, y, t)`**
+  - Linha tracejada animada (usando `lineDashOffset`)
+  - Cor âmbar, avança de `fromX` até `fromX + totalDist * min(1, t*2)`
+
+- [ ] **`drawLabel(ctx, W, H, text, yPos, color, alpha)`**
+  - Texto centralizado, tamanho 13px bold
+  - Respeita `alpha` via `globalAlpha`
+
+- [ ] **`drawWaitClock(ctx, W, H, alpha)`**
+  - Relógio analógico simples (círculo + dois ponteiros)
+  - Texto `"+32min"` e `"espera"` abaixo
+  - Cor vermelha, posicionado no canto superior direito
+
+---
+
+### 7.6 Timelines de animação
+
+Ciclo de 12 segundos. `t` vai de `0.0` a `1.0`.
+
+**`renderBefore(canvas, t)` — painel esquerdo:**
+
+| t (fração) | O que acontece |
+|---|---|
+| 0.00 – 0.08 | Cena parada: pessoa na calçada, relógio de horário fixo visível |
+| 0.08 – 0.62 | Ônibus entra pela direita e atravessa em velocidade constante (`lerp` linear) |
+| 0.40 – 0.54 | Ônibus está perto da parada → `state = 'waving'` (pessoa acena) |
+| 0.54 – 0.75 | Ônibus saiu → `state = 'sad'` (pessoa sozinha, chateada) |
+| 0.68 – 0.90 | `drawWaitClock` aparece (fade in/out) |
+| 0.54 – 0.85 | Label vermelho: `"✗ Ônibus passou sem identificar solicitação"` |
+| 0.90 – 1.00 | Fade out geral para o reset |
+
+**`renderAfter(canvas, t)` — painel direito:**
+
+| t (fração) | O que acontece |
+|---|---|
+| 0.00 – 0.06 | Cena parada: pessoa aguardando |
+| 0.06 – 0.20 | `state = 'tap'` → pessoa toca o cartão → `drawRipple` no poste |
+| 0.18 – 0.38 | `drawSignalPulse` viaja da parada para a direita (onde o ônibus virá) |
+| 0.35 – 0.60 | Ônibus entra pela direita com `alertAlpha` crescendo → badge âmbar visível |
+| 0.12 – 0.60 | Posição do ônibus: `lerp(W+20, stopX - BUS_W/2, easeOut(...))` (desacelera ao chegar) |
+| 0.60 – 0.72 | Ônibus parado no ponto (`busX = stopX - BUS_W/2`) |
+| 0.70 – 0.82 | `state = 'boarding'` → pessoa some gradualmente |
+| 0.75 – 0.95 | Ônibus parte: `lerp(stopX - BUS_W/2, -BUS_W-20, easeIn(...))` (acelera ao sair) |
+| 0.80 – 0.96 | Label verde: `"✓ Embarque assistido concluído"` |
+| 0.95 – 1.00 | Fade out geral para o reset |
+
+---
+
+### 7.7 Loop de animação
+
+- [ ] `startTime = performance.now()` na inicialização
+- [ ] Função `tick()` chamada via `requestAnimationFrame`
+- [ ] Dentro de `tick()`: calcular `t = ((now - startTime) % CYCLE) / CYCLE`
+- [ ] Chamar `renderBefore(canvasBefore, t)` e `renderAfter(canvasAfter, t)`
+- [ ] Nenhum estado global mutável além de `startTime` — as funções de render são puras em relação ao tempo
+
+---
+
+### 7.8 Atualizar README
+
+- [ ] Adicionar `/versus` na tabela de URLs
+
+---
+
 ## Progresso atual
 
 ```
@@ -272,6 +453,7 @@ Marco 3 ██████████ 100% — confirmar, cancelar, expirar
 Marco 4 ████░░░░░░  40% — endpoint /api/rfid pronto; falta hardware + script Pi
 Marco 5 ██████████ 100% — visual, animações, dados DF
 Marco 6 ░░░░░░░░░░   0% — depende do hardware estar pronto
+Marco 7 ░░░░░░░░░░   0% — tela de comparação visual /versus (planejado)
 ```
 
 ---

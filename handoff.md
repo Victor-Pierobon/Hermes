@@ -122,3 +122,106 @@ O endpoint `/api/rfid` no servidor **já existe e já funciona** — testado via
 
 Nenhum commit foi feito ainda. Todos os arquivos em `hermes/` são untracked.
 Os arquivos de planejamento na raiz (`HERMES_plano.md`, `PLANEJAMENTO_HERMES.md`, `README.md`, `SPEC.md`) também estão untracked.
+
+---
+
+## Próxima sessão — Marco 7: Tela de Comparação `/versus`
+
+### O que é e por que existe
+
+Uma página com dois canvas animados em loop side-by-side. Esquerda: sistema atual (ônibus passa sem parar, pessoa acena sem resposta, relógio mostra 32 min de espera). Direita: HERMES (pessoa toca cartão, sinal viaja até o ônibus, ônibus desacelera e para, pessoa embarca, confirmação verde).
+
+Usado no pitch durante o segmento "problema humano" (0:00–1:00). O juiz vê a diferença sem precisar de uma palavra.
+
+### Ordem de execução (TDD obrigatório)
+
+**Passo 1 — Testes primeiro** (4 testes, vão falhar de propósito)
+
+Adicionar em `tests/test_routes.py`, classe `TestVersusPage`:
+```python
+def test_versus_returns_200(self, client)
+def test_versus_contains_before_canvas(self, client)   # id="c-before"
+def test_versus_contains_after_canvas(self, client)    # id="c-after"
+def test_versus_contains_comparison_title(self, client) # "Compara"
+```
+
+Rodar `pytest tests/test_routes.py::TestVersusPage` → confirmar 4 falhas (red).
+
+**Passo 2 — Rota no servidor**
+
+Em `backend/app.py`, adicionar abaixo da rota `/demo`:
+```python
+@app.route("/versus")
+def versus():
+    return send_from_directory(FRONTEND_DIR, "versus.html")
+```
+
+Criar `frontend/versus.html` com a estrutura HTML mínima (apenas os `id`s e o título). Rodar os testes → devem passar (green).
+
+**Passo 3 — HTML e CSS**
+
+Completar o `versus.html` com:
+- Header com link de volta para `/demo`
+- Layout 3 colunas: `[painel-before] [VS] [painel-after]`
+- Dois `<canvas>` com `id="c-before"` e `id="c-after"`, ambos `width="560" height="300"`
+- Dois blocos de stats (texto estático por enquanto)
+- Dois cards de métrica: vermelho "~32 min espera" / verde "< 2 min resposta"
+- CSS inline usando as variáveis de `style.css`
+
+**Passo 4 — Funções de desenho (canvas)**
+
+Implementar no `<script>` do `versus.html`, na seguinte ordem:
+
+1. Constantes (`CYCLE`, `ROAD_TOP_FRAC`, `SIDE_TOP_FRAC`, `STOP_X_FRAC`, `BUS_W`, `BUS_H`)
+2. Helpers (`lerp`, `easeOut`, `easeIn`, `fadeIn`, `fadeOut`)
+3. `drawBackground(ctx, W, H)` — céu + estrelas + calçada + pista + marcações
+4. `drawBusStop(ctx, W, H, glowAlpha)` — poste + teto + banco; muda para âmbar se `glowAlpha > 0`
+5. `drawPerson(ctx, W, H, state, animT)` — boneco palito, 5 estados: `waiting / waving / sad / tap / boarding`
+6. `drawBus(ctx, W, H, busX, variant, alertAlpha)` — carroceria + janelas + rodas + plaquinha + badge âmbar opcional
+7. `drawRipple(ctx, x, y, progress)` — 3 anéis expandindo do ponto de toque
+8. `drawSignalPulse(ctx, fromX, toX, y, t)` — linha tracejada animada com `lineDashOffset`
+9. `drawLabel(ctx, W, H, text, yPos, color, alpha)` — texto centralizado com fade
+10. `drawWaitClock(ctx, W, H, alpha)` — relógio analógico + "+32 min"
+
+**Passo 5 — Renders principais**
+
+11. `renderBefore(canvas, t)` — orquestra as funções para o painel esquerdo conforme a timeline
+12. `renderAfter(canvas, t)` — orquestra as funções para o painel direito conforme a timeline
+
+**Passo 6 — Loop**
+
+13. `tick()` com `requestAnimationFrame`, calcula `t`, chama os dois renders
+
+**Passo 7 — Atualizar README**
+
+Adicionar `/versus` na tabela de URLs.
+
+### Timelines resumidas
+
+```
+BEFORE (t = 0.0 → 1.0, 12s):
+  0.00 pessoa aguarda, relógio de horário fixo
+  0.08 ônibus entra pela direita, velocidade constante
+  0.40 ônibus próximo → pessoa acena
+  0.54 ônibus saiu → pessoa triste, relógio "+32min" aparece
+  0.90 fade out, reset
+
+AFTER (t = 0.0 → 1.0, 12s):
+  0.00 pessoa aguarda
+  0.06 pessoa toca cartão → ripple no poste, parada fica âmbar
+  0.18 pulso de sinal viaja para a direita
+  0.35 ônibus entra com badge "♿ Embarque" visível
+  0.60 ônibus para no ponto (easeOut — desaceleração visível)
+  0.72 pessoa embarca (some gradualmente)
+  0.80 label verde "✓ Embarque assistido confirmado"
+  0.75 ônibus parte (easeIn — aceleração visível)
+  0.95 fade out, reset
+```
+
+### Armadilhas desta feature
+
+- `canvas.roundRect` — disponível Chrome 99+, Safari 15.4+, Firefox 112+. Para o hackathon em 2026 é seguro.
+- `lineDashOffset` para animação de pulso — resetar para `0` após cada uso ou afetará outros desenhos.
+- `globalAlpha` — sempre restaurar para `1.0` ao final de qualquer função que o altere.
+- O canvas NÃO usa SocketIO — é puramente local, sem estado de servidor. Nenhuma modificação no `app.py` além da rota.
+- Não adicionar interatividade (botões, cliques no canvas) — a animação é passiva, loop automático. Simplicidade é o objetivo.
