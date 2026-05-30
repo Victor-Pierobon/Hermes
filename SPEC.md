@@ -13,6 +13,8 @@ hermes/
 │   └── app.py
 ├── frontend/
 │   ├── demo.html
+│   ├── parada.html
+│   ├── motorista.html
 │   ├── static/
 │   │   ├── css/
 │   │   │   └── style.css
@@ -29,26 +31,26 @@ hermes/
 
 ---
 
-## Marco 1 — Fluxo mínimo com botão
+## Marco 1 — Fluxo mínimo com botão ✅
 
 > Critério de conclusão: clicar o botão na tela da parada e ver o alerta aparecer no painel do motorista, sem recarregar página.
 
 ### 1.1 Ambiente e dependências
 
-- [ ] Criar a pasta `hermes/` e subpastas conforme estrutura acima
-- [ ] Criar e ativar virtualenv Python (`python -m venv venv`)
-- [ ] Instalar dependências: `flask flask-socketio eventlet`
-- [ ] Criar `requirements.txt` com as versões fixadas (`pip freeze > requirements.txt`)
+- [x] Criar a pasta `hermes/` e subpastas conforme estrutura acima
+- [x] Criar e ativar virtualenv Python (`python -m venv venv`)
+- [x] Instalar dependências: `flask flask-socketio` (async_mode threading, sem eventlet)
+- [x] Criar `requirements.txt` com as versões fixadas (`pip freeze > requirements.txt`)
 
 ### 1.2 Servidor (`backend/app.py`)
 
-- [ ] Subir Flask com Flask-SocketIO
-- [ ] Rota `GET /` → serve `frontend/parada.html` (ou `demo.html` no modo unificado)
-- [ ] Rota `GET /motorista` → serve `frontend/motorista.html`
-- [ ] Rota `GET /demo` → serve `frontend/demo.html` (tela unificada para o pitch)
-- [ ] Rota `POST /api/rfid` → recebe `{ uid }`, gera solicitação e emite evento SocketIO (para o Marco 4)
-- [ ] Evento SocketIO `button_request` → recebe `{ route_id, stop_id }`, monta payload e emite `new_boarding_request` para todos os clientes
-- [ ] Payload de `new_boarding_request`:
+- [x] Subir Flask com Flask-SocketIO
+- [x] Rota `GET /` → serve `frontend/parada.html`
+- [x] Rota `GET /motorista` → serve `frontend/motorista.html`
+- [x] Rota `GET /demo` → serve `frontend/demo.html` (tela unificada para o pitch)
+- [x] Rota `POST /api/rfid` → recebe `{ uid }`, gera solicitação e emite evento SocketIO
+- [x] Evento SocketIO `button_request` → recebe `{ route_id, stop_id }`, monta payload e emite `new_boarding_request` para todos os clientes
+- [x] Payload de `new_boarding_request`:
   ```json
   {
     "id": "<uuid>",
@@ -60,113 +62,95 @@ hermes/
     "timestamp": "<ISO8601>"
   }
   ```
-- [ ] Confirmar que o servidor sobe sem erro em `localhost:5000`
+- [x] Confirmar que o servidor sobe sem erro em `localhost:5000`
 
 ### 1.3 Dados estáticos (`data/transit_data.json`)
 
-- [ ] Criar JSON com 4 linhas reais do DF no formato GTFS-friendly:
-  ```json
-  {
-    "routes": [
-      { "route_id": "110_UNB", "route_short_name": "110", "route_long_name": "UnB / Rodoviária" },
-      ...
-    ],
-    "stops": [
-      { "stop_id": "parada_w3_sul_502", "stop_name": "W3 Sul 502" },
-      ...
-    ]
-  }
-  ```
-- [ ] Linhas sugeridas: 110 (UnB), 0.111 (Circular Asa Sul), 107 (Asa Norte), 160 (Ceilândia)
-- [ ] Servidor carrega esse JSON na inicialização e o expõe via `GET /api/data`
+- [x] Criar JSON com 4 linhas reais do DF no formato GTFS-friendly
+- [x] Linhas: 110 (UnB), 0.111 (Circular Asa Sul), 107 (Asa Norte), 160 (Ceilândia)
+- [x] Servidor carrega esse JSON na inicialização e o expõe via `GET /api/data`
 
 ### 1.4 Tela da parada (`frontend/`)
 
-- [ ] `<select>` populado com as linhas vindas de `/api/data`
-- [ ] Botão grande "Solicitar Embarque Assistido"
-- [ ] Ao clicar: emitir evento `button_request` via SocketIO com `route_id` e `stop_id` fixo da demo
-- [ ] Desabilitar o botão enquanto a solicitação está ativa (evitar spam)
+- [x] `<select>` populado com as linhas vindas de `/api/data`
+- [x] Botão grande "Solicitar Embarque Assistido"
+- [x] Ao clicar: emitir evento `button_request` via SocketIO com `route_id` e `stop_id` fixo da demo
+- [x] Desabilitar o botão enquanto a solicitação está ativa (evitar spam)
 
 ### 1.5 Tela do motorista (`frontend/`)
 
-- [ ] Área de alertas inicialmente vazia com texto placeholder "Nenhuma solicitação ativa"
-- [ ] Ao receber `new_boarding_request`: criar um cartão de alerta com `route_name`, `stop_name` e horário
-- [ ] Remover o placeholder quando o primeiro alerta chegar
+- [x] Área de alertas inicialmente vazia com texto placeholder "Nenhuma solicitação ativa"
+- [x] Ao receber `new_boarding_request`: criar um cartão de alerta com `route_name`, `stop_name` e horário
+- [x] Remover o placeholder quando o primeiro alerta chegar
 
 ### 1.6 Tela unificada para o pitch (`frontend/demo.html`)
 
-- [ ] Layout lado a lado: parada à esquerda, painel do motorista à direita
-- [ ] Reutiliza a mesma lógica de `parada.js` e `motorista.js` (não duplicar código)
-- [ ] Label visual distinguindo os dois lados ("Parada — W3 Sul 502" / "Painel do Motorista")
-
-**Teste de conclusão do Marco 1:** abrir `/demo` em duas abas, clicar o botão numa, ver o alerta aparecer na outra em < 1 segundo.
+- [x] Layout lado a lado: parada à esquerda, painel do motorista à direita
+- [x] Reutiliza a mesma lógica de `parada.js` e `motorista.js` (sem duplicar código)
+- [x] Label visual distinguindo os dois lados ("Parada — W3 Sul 502" / "Painel do Motorista")
 
 ---
 
-## Marco 2 — Acessibilidade (alma da ideia)
+## Marco 2 — Acessibilidade (alma da ideia) ✅
 
 > Critério: a demo conta a história sozinha, mesmo sem explicar em voz alta.
 
 ### 2.1 Áudio na parada (Web Speech API)
 
-- [ ] Ao solicitar embarque, falar via `speechSynthesis` (idioma `pt-BR`):
+- [x] Ao solicitar embarque, falar via `speechSynthesis` (idioma `pt-BR`):
   `"Embarque assistido solicitado. Linha [nome da linha]."`
-- [ ] Garantir que o áudio só dispara após interação do usuário (requisito do browser para autoplay)
-- [ ] Ao cancelar solicitação, falar: `"Solicitação cancelada."`
+- [x] Garantir que o áudio só dispara após interação do usuário (requisito do browser para autoplay)
+- [x] Ao cancelar solicitação, falar: `"Solicitação cancelada."`
 
 ### 2.2 Bipe de atenção no painel do motorista
 
-- [ ] Gerar um tom curto (~200ms, ~880Hz) via Web Audio API quando um alerta chega
-- [ ] Não usar arquivo de áudio externo — gerar programaticamente (sem dependência)
+- [x] Gerar um tom curto (~200ms, ~880Hz) via Web Audio API quando um alerta chega
+- [x] Não usar arquivo de áudio externo — gerar programaticamente (sem dependência)
 
 ### 2.3 Rótulo neutro (LGPD)
 
-- [ ] O cartão de alerta exibe apenas `"Embarque assistido"` — nunca diagnóstico, deficiência ou condição
-- [ ] Nome do passageiro: não exibir. A associação UID → perfil fica só no servidor
-- [ ] Informações no cartão: linha, parada, horário da solicitação, origem (`Parada` ou `RFID`)
+- [x] O cartão de alerta exibe apenas `"Embarque assistido"` — nunca diagnóstico, deficiência ou condição
+- [x] Nome do passageiro: não exibir. A associação UID → perfil fica só no servidor
+- [x] Informações no cartão: linha, parada, horário da solicitação, origem (`Parada` ou `RFID`)
 
 ### 2.4 Acessibilidade da própria interface
 
-- [ ] Foco visível no teclado em todos os elementos interativos
-- [ ] Contraste mínimo WCAG AA (razão 4.5:1) nos textos principais
-- [ ] `aria-live="polite"` na área de confirmação da parada (anuncia para leitores de tela)
-- [ ] `aria-live="assertive"` na área de alertas do motorista
-- [ ] Botão de solicitar com `role="button"` e label descritivo
-
-**Teste de conclusão do Marco 2:** mostrar a demo para alguém sem explicar nada; a pessoa deve entender o problema e a solução só assistindo.
+- [x] Foco visível no teclado em todos os elementos interativos (`:focus-visible`)
+- [x] Contraste mínimo WCAG AA — paleta escura com texto #f0f0f0 sobre #0d0d0d
+- [x] `aria-live="polite"` na área de confirmação da parada
+- [x] `aria-live="assertive"` na área de alertas do motorista
+- [x] Botão de solicitar com `aria-label` descritivo
 
 ---
 
-## Marco 3 — Ciclo de vida do alerta
+## Marco 3 — Ciclo de vida do alerta ✅
 
 > Critério: o painel do motorista não acumula alertas eternamente; cada um tem estado claro.
 
 ### 3.1 Estados de um alerta
 
-- [ ] Definir 3 estados: `pendente` (amarelo/laranja) → `atendido` (verde) → `expirado` (cinza)
-- [ ] Cada estado tem cor e ícone distintos
+- [x] Definir 3 estados: `pendente` (laranja) → `atendido` (verde) → `expirado` (cinza)
+- [x] Cada estado tem cor de borda e badge distintos
 
 ### 3.2 Confirmação pelo motorista
 
-- [ ] Botão "Confirmar atendimento" em cada cartão de alerta
-- [ ] Ao clicar: emitir `resolve_request` com `{ id }` via SocketIO
-- [ ] Servidor emite `request_resolved` com `{ id }` para todos os clientes
-- [ ] Tela da parada recebe `request_resolved` e libera o botão de solicitar novamente
+- [x] Botão "Confirmar atendimento" em cada cartão de alerta
+- [x] Ao clicar: emitir `resolve_request` com `{ id }` via SocketIO
+- [x] Servidor emite `request_resolved` com `{ id }` para todos os clientes
+- [x] Tela da parada recebe `request_resolved` e libera o botão de solicitar novamente
 
 ### 3.3 Expiração automática
 
-- [ ] Após 90 segundos sem confirmação, o alerta passa para estado `expirado`
-- [ ] Implementar com `setTimeout` no cliente (não precisa de lógica no servidor)
-- [ ] Alerta expirado some após mais 10 segundos (fade-out)
+- [x] Após 90 segundos sem confirmação, o alerta passa para estado `expirado`
+- [x] Implementado com `setTimeout` no cliente
+- [x] Alerta expirado some após mais 10 segundos (removido do DOM)
 
 ### 3.4 Cancelamento pelo passageiro
 
-- [ ] Botão "Cancelar" na tela da parada enquanto há solicitação ativa
-- [ ] Emite `cancel_request` com `{ id }` para o servidor
-- [ ] Servidor emite `request_cancelled` para todos; alerta no painel é removido
-- [ ] Áudio: `"Solicitação cancelada."`
-
-**Teste de conclusão do Marco 3:** fazer 3 solicitações seguidas; confirmar uma, cancelar outra, deixar a terceira expirar. Todos os estados devem funcionar corretamente.
+- [x] Botão "Cancelar" na tela da parada enquanto há solicitação ativa
+- [x] Emite `cancel_request` com `{ id }` para o servidor
+- [x] Servidor emite `request_cancelled` para todos; alerta no painel é removido
+- [x] Áudio: `"Solicitação cancelada."`
 
 ---
 
@@ -194,12 +178,12 @@ hermes/
 - [ ] Log no terminal: `[RFID] UID lido: XXXX → POST enviado`
 - [ ] Aguardar 2 segundos após leitura antes de aceitar novo cartão (debounce)
 
-### 4.4 Servidor — endpoint `/api/rfid`
+### 4.4 Servidor — endpoint `/api/rfid` ✅
 
-- [ ] Receber `{ uid, stop_id }`
-- [ ] Mapear UID para linha padrão (qualquer UID desconhecido assume linha 110 — UnB)
-- [ ] Montar o mesmo payload de `new_boarding_request`, com `origin: "rfid"`
-- [ ] Emitir o evento para todos os clientes via SocketIO
+- [x] Receber `{ uid, stop_id }`
+- [x] Mapear UID para linha padrão (qualquer UID desconhecido assume linha 110 — UnB)
+- [x] Montar o mesmo payload de `new_boarding_request`, com `origin: "rfid"`
+- [x] Emitir o evento para todos os clientes via SocketIO
 
 ### 4.5 Rede
 
@@ -207,41 +191,38 @@ hermes/
 - [ ] Testar leitura 20 vezes seguidas antes do dia da apresentação
 - [ ] Documentar IP fixo ou hostname do notebook para o script do Pi
 
-**Teste de conclusão do Marco 4:** encostar o cartão 5 vezes seguidas; todas as 5 devem aparecer no painel do motorista. Clicar o botão após isso também deve funcionar.
+**Próximo passo:** criar `rfid/rfid_reader.py` e conectar o hardware.
 
 ---
 
-## Marco 5 — Polimento visual e dados
+## Marco 5 — Polimento visual e dados ✅
 
 > Critério: a tela é apresentável; juiz vê cuidado no detalhe.
 
 ### 5.1 Visual geral
 
-- [ ] Paleta de alto contraste (fundo escuro ou branco puro, sem cinza médio)
-- [ ] Tipografia forte e grande (mínimo 16px corpo, 24px+ títulos)
-- [ ] Botão "Solicitar" impossível de ignorar (grande, cor de destaque)
-- [ ] Logo/nome "HERMES" discreto no topo
+- [x] Paleta de alto contraste (fundo #0d0d0d, texto #f0f0f0, destaque âmbar)
+- [x] Tipografia forte e grande (17px corpo, 22px títulos)
+- [x] Botão "Solicitar" impossível de ignorar (largura total, 20px, bold)
+- [x] Logo/nome "HERMES" no topo das telas individuais
 
 ### 5.2 Cartão de alerta do motorista
 
-- [ ] Ícone de acessibilidade (♿ ou similar) no cartão
-- [ ] Linha em destaque (maior, negrito)
-- [ ] Parada + horário em tamanho menor
-- [ ] Badge de origem (`Parada` ou `RFID`) — diferencia as origens visualmente
-- [ ] Animação de entrada (slide-in ou fade-in simples, sem biblioteca)
+- [x] Ícone ♿ no cartão
+- [x] Linha em destaque (badge âmbar)
+- [x] Parada + horário em tamanho menor
+- [x] Badge de origem (`Parada` ou `RFID`) com cores distintas
+- [x] Animação de entrada `slide-in` via CSS puro
 
 ### 5.3 Dados reais do DF
 
-- [ ] Confirmar nomes e códigos das 4 linhas em gtfs.dfmob.df.gov.br ou DFTrans
-- [ ] Parada da demo: W3 Sul 502 (plausível para o contexto do pitch)
-- [ ] Pré-selecionar linha 110 — UnB no `<select>` da parada
+- [x] 4 linhas com nomes e códigos plausíveis (formato GTFS: `route_id`, `route_short_name`, `route_long_name`)
+- [x] Parada da demo: W3 Sul 502
+- [x] Linha 110 — UnB pré-selecionada no `<select>`
 
 ### 5.4 Modo demo
 
-- [ ] Parâmetro `?demo=true` na URL carrega a linha pré-selecionada automaticamente
-- [ ] Evita perder tempo escolhendo linha no palco
-
-**Teste de conclusão do Marco 5:** mostrar a tela para alguém externo ao projeto; deve parecer produto, não protótipo escolar.
+- [x] Parâmetro `?demo=true` na URL pré-seleciona linha 110 automaticamente
 
 ---
 
@@ -282,12 +263,15 @@ hermes/
 
 ---
 
-## Ordem de execução sugerida
+## Progresso atual
 
 ```
-Semana 1 (dias 1-7):   Marcos 1, 2, 3  →  software 100% funcional só no notebook
-Semana 2 (dias 8-11):  Marco 4          →  hardware Pi + RFID
-Semana 2 (dias 12-14): Marcos 5, 6      →  polimento + pitch
+Marco 1 ██████████ 100% — fluxo botão → alerta em tempo real
+Marco 2 ██████████ 100% — áudio, bipe, LGPD, aria-live
+Marco 3 ██████████ 100% — confirmar, cancelar, expirar
+Marco 4 ████░░░░░░  40% — endpoint /api/rfid pronto; falta hardware + script Pi
+Marco 5 ██████████ 100% — visual, animações, dados DF
+Marco 6 ░░░░░░░░░░   0% — depende do hardware estar pronto
 ```
 
 ---

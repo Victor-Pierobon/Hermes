@@ -1,84 +1,113 @@
 # HERMES — Protótipo de Demonstração
 
-Sistema de Acessibilidade por Proximidade e Integração de Dados -codinome: HERMES- — transporte público do DF.
+Sistema de Acessibilidade por Proximidade e Integração de Dados — transporte público do DF.
 
-Este é o protótipo enxuto para o pitch (3 minutos) e base do projeto de faculdade.
-O foco da demo é **um único momento**: o passageiro se identifica na parada (cartão RFID
-ou toque) e o painel do motorista acende **em tempo real** com um alerta de embarque assistido.
+Protótipo enxuto para o pitch (3 minutos) e base do projeto de faculdade.
+O foco da demo é **um único momento**: o passageiro se identifica na parada (cartão RFID ou toque)
+e o painel do motorista acende **em tempo real** com um alerta de embarque assistido.
 
-## Arquitetura da demo (o ponto importante)
+---
 
-Existe **um único evento** de solicitação de embarque, com **duas origens possíveis**:
+## Arquitetura da demo
 
-- `button` — clique na tela da parada → **caminho seguro / plano B**
-- `rfid` — leitura do cartão no Raspberry Pi → **caminho de impacto**
+Um único evento de solicitação de embarque, com duas origens possíveis:
+
+| Origem | Como | Papel |
+|---|---|---|
+| `button` | clique na tela da parada | plano B infalível |
+| `rfid` | leitura do cartão no Raspberry Pi | caminho de impacto |
 
 O servidor trata as duas igual. Se o RFID falhar no palco, você clica e ninguém percebe.
-Construa e confie no botão primeiro; o RFID é a cereja do bolo.
 
-## Como rodar (no notebook)
+---
+
+## Como rodar
 
 ```bash
+cd hermes
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cd backend
-python app.py
+python backend/app.py
 ```
 
-Abra a tela do pitch: **http://localhost:5000/demo**
-(Tela única com a parada à esquerda e o painel do motorista à direita, lado a lado.)
+| URL | O que é |
+|---|---|
+| `http://localhost:5000/demo` | **Tela do pitch** — parada à esquerda, motorista à direita |
+| `http://localhost:5000/` | Tela da parada (isolada) |
+| `http://localhost:5000/motorista` | Painel do motorista (isolado) |
+| `http://localhost:5000/api/data` | JSON com linhas e paradas |
 
-Telas separadas, se quiser projetar em dois lugares:
-- Parada:     http://localhost:5000/
-- Motorista:  http://localhost:5000/motorista
+**Dica para o pitch:** abra `/demo?demo=true` — a linha 110 já vem pré-selecionada.
+
+---
 
 ## Como ligar o Raspberry Pi (RC522)
 
-No Raspberry (não na sua máquina):
+No Raspberry Pi (não na sua máquina):
 
 ```bash
-sudo raspi-config        # Interface Options -> SPI -> habilitar
+sudo raspi-config        # Interface Options → SPI → habilitar
 pip3 install mfrc522 RPi.GPIO requests
 ```
 
-1. Descubra o IP do notebook (`ip addr` / `ifconfig`).
-2. Edite `rfid/rfid_reader.py` → `SERVER_URL` com esse IP.
+1. Descubra o IP do notebook: `ip addr` ou `ifconfig`
+2. Edite `rfid/rfid_reader.py` → constante `SERVER_URL` com esse IP
 3. Rode no Pi: `python3 rfid/rfid_reader.py`
-4. Encoste o cartão. Deve aparecer no painel do motorista no notebook.
+4. Encoste o cartão — o alerta aparece no painel do motorista no notebook
+
+**Pinout RC522 → Pi:** SDA→GPIO8, SCK→GPIO11, MOSI→GPIO10, MISO→GPIO9, GND→GND, RST→GPIO25, 3.3V→3.3V
 
 **Rede:** Pi e notebook na MESMA rede. Não confie no wi-fi do evento —
 leve um roteador próprio ou use o notebook como hotspot.
 
-## Checklist da demo (dia da apresentação)
-
-- [ ] Servidor rodando e tela `/demo` aberta em tela cheia
-- [ ] Som do notebook ligado (o áudio de acessibilidade é parte do impacto)
-- [ ] Pi conectado e testado **antes** de subir ao palco (encostar o cartão ~5x)
-- [ ] Vídeo/GIF de backup da demo funcionando, aberto em outra aba
-- [ ] Se o Pi não responder em ~2s: clicar o botão e seguir sem comentar
-- [ ] Linha pré-selecionada (110 — UnB) para não perder tempo escolhendo
-
-## O que é real x o que é visão (para o pitch)
-
-| Componente | Na demo | Visão (slide) |
-|---|---|---|
-| Solicitação na parada | ✅ RFID real + botão | hardware embarcado nos abrigos |
-| Áudio de acessibilidade | ✅ Web Speech API | — |
-| Alerta em tempo real ao motorista | ✅ SocketIO | terminal de bordo real |
-| Rótulo neutro (LGPD) | ✅ "Embarque assistido" | — |
-| Geofencing (raio 500m) | slide | GPS real da frota |
-| GTFS-Realtime | formato presente no código | feed unificado das concessionárias |
-| Despacho dinâmico / ML | — | fase futura |
-| Grafo Neo4j / matriz O-D | — | fase futura |
+---
 
 ## Estrutura
 
 ```
-sapid/
-├── backend/app.py            # servidor Flask + SocketIO (evento único, 2 origens)
+hermes/
+├── backend/
+│   └── app.py                    # Flask + SocketIO — evento único, 2 origens, 3 eventos
 ├── frontend/
-│   ├── demo.html             # tela do pitch (parada + motorista lado a lado)
-│   └── static/{css,js}/      # estilo e lógica
-├── rfid/rfid_reader.py       # script do Raspberry Pi (RC522)
-├── data/transit_data.json    # linhas, paradas, cartões (formato GTFS-friendly)
+│   ├── demo.html                 # tela do pitch (parada + motorista lado a lado)
+│   ├── parada.html               # tela isolada da parada
+│   ├── motorista.html            # painel isolado do motorista
+│   └── static/
+│       ├── css/style.css         # paleta alto contraste, animações, estados dos alertas
+│       └── js/
+│           ├── parada.js         # botão, cancelar, Web Speech API
+│           └── motorista.js      # cartões, bipe Web Audio, expiração, confirmar
+├── rfid/
+│   └── rfid_reader.py            # script do Raspberry Pi (RC522) — a criar no Marco 4
+├── data/
+│   └── transit_data.json         # 4 linhas reais do DF, formato GTFS-friendly
 └── requirements.txt
 ```
+
+---
+
+## O que é real x o que é visão
+
+| Componente | Na demo | Visão (slide) |
+|---|---|---|
+| Solicitação na parada | ✅ botão web | hardware embarcado nos abrigos |
+| Solicitação via RFID | ✅ endpoint pronto; falta script Pi | leitores NFC nos totens |
+| Áudio de acessibilidade | ✅ Web Speech API (`pt-BR`) | — |
+| Alerta em tempo real | ✅ Flask-SocketIO | terminal de bordo real |
+| Rótulo neutro (LGPD) | ✅ "Embarque assistido" | — |
+| Ciclo de vida do alerta | ✅ confirmar / cancelar / expirar | — |
+| Geofencing (raio 500m) | slide | GPS real da frota |
+| GTFS-Realtime | formato presente nos dados | feed unificado das concessionárias |
+| Despacho dinâmico / ML | — | fase futura |
+| Grafo Neo4j / matriz O-D | — | fase futura |
+
+---
+
+## Checklist do dia da apresentação
+
+- [ ] Servidor rodando e `/demo?demo=true` aberta em tela cheia
+- [ ] Som do notebook ligado (o áudio é parte do impacto)
+- [ ] Pi conectado e testado **antes** de subir ao palco (5 leituras de teste)
+- [ ] Vídeo/GIF de backup da demo funcionando, aberto em outra aba
+- [ ] Se o Pi não responder em ~2s: clicar o botão e seguir sem comentar

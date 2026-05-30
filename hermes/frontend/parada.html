@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HERMES — Parada</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="page-layout">
+    <header class="hermes-header">
+      <span class="hermes-logo">HERMES</span>
+    </header>
+
+    <p class="panel-label">Parada</p>
+    <h1 class="panel-title">W3 Sul 502</h1>
+
+    <label for="route-select">Linha desejada</label>
+    <select id="route-select" aria-label="Selecione a linha"></select>
+
+    <button id="btn-request" class="btn-request" aria-label="Solicitar embarque assistido">
+      Solicitar Embarque Assistido
+    </button>
+
+    <button id="btn-cancel" class="btn-cancel" aria-label="Cancelar solicitação">
+      Cancelar solicitação
+    </button>
+
+    <div
+      id="status-parada"
+      class="status-parada"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/static/js/parada.js"></script>
+</body>
+</html>

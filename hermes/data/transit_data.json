@@ -1,0 +1,13 @@
+{
+  "routes": [
+    { "route_id": "110_UNB",  "route_short_name": "110",   "route_long_name": "UnB / Rodoviária" },
+    { "route_id": "111_CIR",  "route_short_name": "0.111", "route_long_name": "Circular Asa Sul" },
+    { "route_id": "107_ANO",  "route_short_name": "107",   "route_long_name": "Asa Norte / Rodoviária" },
+    { "route_id": "160_CEI",  "route_short_name": "160",   "route_long_name": "Ceilândia / Rodoviária" }
+  ],
+  "stops": [
+    { "stop_id": "parada_w3_sul_502", "stop_name": "W3 Sul 502" },
+    { "stop_id": "parada_w3_sul_506", "stop_name": "W3 Sul 506" },
+    { "stop_id": "parada_w3_norte_714", "stop_name": "W3 Norte 714" }
+  ]
+}
