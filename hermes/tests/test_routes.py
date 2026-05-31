@@ -16,6 +16,37 @@ class TestVersusPage:
     def test_versus_contains_comparison_title(self, client):
         assert b"Compara" in client.get("/versus").data
 
+    def test_versus_contains_route_before_canvas(self, client):
+        assert b"c-route-before" in client.get("/versus").data
+
+    def test_versus_contains_route_after_canvas(self, client):
+        assert b"c-route-after" in client.get("/versus").data
+
+    def test_versus_contains_gtfs_section(self, client):
+        assert b"GTFS" in client.get("/versus").data
+
+    def test_versus_contains_bunching_concept(self, client):
+        assert b"bunching" in client.get("/versus").data
+
+
+# ── /demanda ──────────────────────────────────────────────────────────────────
+
+class TestDemandaPage:
+    def test_demanda_returns_200(self, client):
+        assert client.get("/demanda").status_code == 200
+
+    def test_demanda_contains_before_canvas(self, client):
+        assert b"c-demand-before" in client.get("/demanda").data
+
+    def test_demanda_contains_after_canvas(self, client):
+        assert b"c-demand-after" in client.get("/demanda").data
+
+    def test_demanda_contains_peak_concept(self, client):
+        assert b"pico" in client.get("/demanda").data
+
+    def test_demanda_contains_gtfs_reference(self, client):
+        assert b"GTFS" in client.get("/demanda").data
+
 
 # ── páginas HTML ──────────────────────────────────────────────────────────────
 

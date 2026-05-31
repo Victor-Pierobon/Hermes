@@ -59,6 +59,16 @@ def demo():
     return send_from_directory(FRONTEND_DIR, "demo.html")
 
 
+@app.route("/versus")
+def versus():
+    return send_from_directory(FRONTEND_DIR, "versus.html")
+
+
+@app.route("/demanda")
+def demanda():
+    return send_from_directory(FRONTEND_DIR, "demanda.html")
+
+
 @app.route("/api/data")
 def api_data():
     return jsonify(TRANSIT_DATA)

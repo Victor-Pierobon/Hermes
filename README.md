@@ -34,6 +34,8 @@ python backend/app.py
 | URL | O que é |
 |---|---|
 | `http://localhost:5000/demo` | **Tela do pitch** — parada à esquerda, motorista à direita |
+| `http://localhost:5000/versus` | **Comparação animada** — sistema atual vs HERMES (loop automático) |
+| `http://localhost:5000/demanda` | **Mapa de demanda** — horário de pico, despacho dinâmico vs escala fixa |
 | `http://localhost:5000/` | Tela da parada (isolada) |
 | `http://localhost:5000/motorista` | Painel do motorista (isolado) |
 | `http://localhost:5000/api/data` | JSON com linhas e paradas |
@@ -68,11 +70,13 @@ leve um roteador próprio ou use o notebook como hotspot.
 ```
 hermes/
 ├── backend/
-│   └── app.py                    # Flask + SocketIO — evento único, 2 origens, 3 eventos
+│   └── app.py                    # Flask + SocketIO — 5 rotas HTTP, 1 endpoint REST, 3 eventos
 ├── frontend/
 │   ├── demo.html                 # tela do pitch (parada + motorista lado a lado)
 │   ├── parada.html               # tela isolada da parada
 │   ├── motorista.html            # painel isolado do motorista
+│   ├── versus.html               # comparação animada: acessibilidade + bunching vs HERMES
+│   ├── demanda.html              # mapa de demanda: horário de pico vs despacho dinâmico
 │   └── static/
 │       ├── css/style.css         # paleta alto contraste, animações, estados dos alertas
 │       └── js/
@@ -82,8 +86,24 @@ hermes/
 │   └── rfid_reader.py            # script do Raspberry Pi (RC522) — a criar no Marco 4
 ├── data/
 │   └── transit_data.json         # 4 linhas reais do DF, formato GTFS-friendly
+├── tests/
+│   ├── conftest.py               # fixtures Flask + SocketIO test client
+│   ├── test_routes.py            # rotas HTTP e páginas HTML
+│   ├── test_events.py            # eventos SocketIO (button, resolve, cancel, rfid)
+│   ├── test_helpers.py           # funções internas (_build_payload, _find_stop_name)
+│   └── test_data.py              # integridade do transit_data.json
 └── requirements.txt
 ```
+
+---
+
+## Páginas visuais (para o pitch)
+
+| Página | Quando usar no pitch | O que mostra |
+|---|---|---|
+| `/demo?demo=true` | **Demo ao vivo (1:30–2:30)** | Parada + painel do motorista, fluxo RFID/botão em tempo real |
+| `/versus` | **Problema (0:00–1:00)** | Acessibilidade: ônibus que passa vs HERMES que para + bunching vs headway regulado |
+| `/demanda` | **Virada da ideia (1:00–1:30)** | Mapa de rotas do DF: pico sem GTFS-RT vs despacho dinâmico |
 
 ---
 
@@ -97,17 +117,32 @@ hermes/
 | Alerta em tempo real | ✅ Flask-SocketIO | terminal de bordo real |
 | Rótulo neutro (LGPD) | ✅ "Embarque assistido" | — |
 | Ciclo de vida do alerta | ✅ confirmar / cancelar / expirar | — |
+| Visualização acessibilidade | ✅ `/versus` canvas animado | — |
+| Visualização bunching | ✅ `/versus` seção GTFS-RT | — |
+| Visualização demanda de pico | ✅ `/demanda` mapa animado | — |
 | Geofencing (raio 500m) | slide | GPS real da frota |
-| GTFS-Realtime | formato presente nos dados | feed unificado das concessionárias |
-| Despacho dinâmico / ML | — | fase futura |
-| Grafo Neo4j / matriz O-D | — | fase futura |
+| GTFS-Realtime feed real | slide | feed unificado das concessionárias |
+| Despacho dinâmico / ML | slide | fase futura |
+| Grafo Neo4j / matriz O-D | slide | fase futura |
+
+---
+
+## Testes
+
+```bash
+cd hermes && source venv/bin/activate
+pytest tests/ -v          # 110 testes, todos devem passar
+```
+
+Cobertura: rotas HTTP, eventos SocketIO (broadcast para 2 clientes), helpers internos, integridade do JSON de dados.
 
 ---
 
 ## Checklist do dia da apresentação
 
-- [ ] Servidor rodando e `/demo?demo=true` aberta em tela cheia
-- [ ] Som do notebook ligado (o áudio é parte do impacto)
+- [ ] Servidor rodando (`python backend/app.py`)
+- [ ] Abas abertas em tela cheia: `/versus`, `/demanda`, `/demo?demo=true`
+- [ ] Som do notebook ligado (áudio Web Speech é parte do impacto)
 - [ ] Pi conectado e testado **antes** de subir ao palco (5 leituras de teste)
 - [ ] Vídeo/GIF de backup da demo funcionando, aberto em outra aba
 - [ ] Se o Pi não responder em ~2s: clicar o botão e seguir sem comentar

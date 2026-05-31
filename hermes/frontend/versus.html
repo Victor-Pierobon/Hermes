@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HERMES — Comparação</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    body { overflow-y: auto; }
+
+    .versus-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .versus-title { font-size: 16px; font-weight: 700; }
+    .versus-back  { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+    .versus-back:hover { color: var(--text); }
+
+    .versus-layout {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      padding: 12px 24px 8px;
+      gap: 0;
+    }
+
+    .v-panel { padding: 0 12px; }
+
+    .v-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 4px;
+    }
+    .v-tag-before { background: rgba(100,100,100,.18); color: #777; border: 1px solid #444; }
+    .v-tag-after  { background: rgba(245,166,35,.15);  color: var(--accent); border: 1px solid var(--accent); }
+
+    .v-panel h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #080b12;
+    }
+
+    .v-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .v-stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .v-metric {
+      margin-top: 8px;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+    }
+    .v-metric-before { background: rgba(239,68,68,.07);  border: 1px solid rgba(239,68,68,.35); }
+    .v-metric-after  { background: rgba(34,197,94,.07);  border: 1px solid rgba(34,197,94,.35); }
+
+    .v-metric-value {
+      display: block;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+    .v-metric-before .v-metric-value { color: #ef4444; }
+    .v-metric-after  .v-metric-value { color: var(--green); }
+    .v-metric-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: block; }
+
+    .v-divider {
+      display: flex;
+      align-items: flex-start;
+      padding-top: 72px;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    .vs-badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: .04em;
+      flex-shrink: 0;
+    }
+
+    /* ── seção de eficiência operacional ── */
+    .eff-section {
+      padding: 0 24px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .eff-header { padding: 12px 12px 8px; }
+    .eff-header h3 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .eff-header p  { font-size: 12px; color: var(--text-muted); }
+    .eff-panels {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+    }
+    .eff-panel { padding: 0 12px; }
+    .eff-metric {
+      margin-top: 8px;
+      font-size: 12px;
+      padding: 7px 12px;
+      border-radius: 6px;
+    }
+    .eff-metric-before { background: rgba(239,68,68,.07);  border: 1px solid rgba(239,68,68,.25); color: #ef4444; }
+    .eff-metric-after  { background: rgba(34,197,94,.07);  border: 1px solid rgba(34,197,94,.25);  color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <header class="versus-header">
+    <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" />
+    <span class="versus-title">Comparação: Sistema Atual vs HERMES</span>
+    <a href="/demo" class="versus-back">← Demo ao vivo</a>
+  </header>
+
+  <div class="versus-layout">
+
+    <!-- ANTES -->
+    <div class="v-panel">
+      <span class="v-tag v-tag-before">Hoje</span>
+      <h2>Horários fixos — sem comunicação</h2>
+      <canvas id="c-before" width="560" height="230"></canvas>
+      <div class="v-stats">
+        <div class="v-stat"><span>⏱</span><span>Ônibus segue grade fixa independente de quem espera</span></div>
+        <div class="v-stat"><span>♿</span><span>Passageiro não consegue sinalizar qual linha precisa</span></div>
+      </div>
+      <div class="v-metric v-metric-before">
+        <span class="v-metric-value">~32 min</span>
+        <span class="v-metric-label">espera média pelo próximo ônibus após um ser perdido</span>
+      </div>
+    </div>
+
+    <div class="v-divider"><div class="vs-badge">VS</div></div>
+
+    <!-- DEPOIS -->
+    <div class="v-panel">
+      <span class="v-tag v-tag-after">HERMES</span>
+      <h2>Solicitação em tempo real</h2>
+      <canvas id="c-after" width="560" height="230"></canvas>
+      <div class="v-stats">
+        <div class="v-stat"><span>📡</span><span>Passageiro solicita via RFID ou botão no app</span></div>
+        <div class="v-stat"><span>🚌</span><span>Motorista recebe alerta ao se aproximar da parada</span></div>
+      </div>
+      <div class="v-metric v-metric-after">
+        <span class="v-metric-value">&lt; 2 min</span>
+        <span class="v-metric-label">tempo de resposta do sistema após a solicitação</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Seção de Eficiência Operacional / GTFS-Realtime ───────────────────── -->
+  <div class="eff-section">
+    <div class="eff-header">
+      <h3>Eficiência Operacional — GTFS-Realtime</h3>
+      <p>O HERMES elimina o <strong>bunching</strong> (acúmulo de ônibus) e redistribui a frota
+         dinamicamente com base em demanda real</p>
+    </div>
+    <div class="eff-panels">
+
+      <div class="eff-panel">
+        <span class="v-tag v-tag-before">Sem GTFS-Realtime</span>
+        <canvas id="c-route-before" width="520" height="165"></canvas>
+        <div class="eff-metric eff-metric-before">
+          Headway irregular — gap de até 35 min num corredor de 12 min
+        </div>
+      </div>
+
+      <div class="v-divider" style="padding-top:52px"><div class="vs-badge">VS</div></div>
+
+      <div class="eff-panel">
+        <span class="v-tag v-tag-after">Com HERMES + GTFS-Realtime</span>
+        <canvas id="c-route-after" width="520" height="165"></canvas>
+        <div class="eff-metric eff-metric-after">
+          Headway regulado dinamicamente — intervalo médio de ~10 min
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  // ── Constantes ────────────────────────────────────────────────────────────────
+  const CYCLE          = 12000;
+  const STOPS_X        = [55, 148, 240, 333, 425];
+  const ROUTE_YFRAC    = 0.56;
+  const MBUS_W = 30, MBUS_H = 18;
+  const ROAD_TOP_FRAC = 0.60;
+  const SIDE_TOP_FRAC = 0.48;
+  const STOP_X_FRAC   = 0.32;
+  const BUS_W = 100, BUS_H = 50;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+  function easeOut(t)     { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 2); }
+  function easeIn(t)      { t = Math.max(0, Math.min(1, t)); return t * t; }
+  function fadeIn(t, s, e)  { return Math.max(0, Math.min(1, (t - s) / (e - s))); }
+  function fadeOut(t, s, e) { return 1 - fadeIn(t, s, e); }
+
+  // ── drawBackground ────────────────────────────────────────────────────────────
+  function drawBackground(ctx, W, H) {
+    const roadY = H * ROAD_TOP_FRAC;
+    const sideY = H * SIDE_TOP_FRAC;
+
+    // Céu
+    const sky = ctx.createLinearGradient(0, 0, 0, sideY);
+    sky.addColorStop(0, '#05070f');
+    sky.addColorStop(1, '#0d1020');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, sideY);
+
+    // Estrelas
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    [[28,12],[75,22],[138,8],[210,30],[290,10],[370,24],[455,14],[520,28]].forEach(([x,y]) => {
+      ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Calçada
+    ctx.fillStyle = '#161616';
+    ctx.fillRect(0, sideY, W, roadY - sideY);
+
+    // Pista
+    const road = ctx.createLinearGradient(0, roadY, 0, H);
+    road.addColorStop(0, '#202023'); road.addColorStop(1, '#18181a');
+    ctx.fillStyle = road;
+    ctx.fillRect(0, roadY, W, H - roadY);
+
+    // Linha de meio-fio
+    ctx.strokeStyle = '#383840'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(0, roadY); ctx.lineTo(W, roadY); ctx.stroke();
+
+    // Marcação central tracejada
+    ctx.strokeStyle = '#383838'; ctx.lineWidth = 2; ctx.setLineDash([22, 16]);
+    ctx.beginPath();
+    ctx.moveTo(0, roadY + (H - roadY) * 0.5);
+    ctx.lineTo(W, roadY + (H - roadY) * 0.5);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ── drawBusStop ───────────────────────────────────────────────────────────────
+  function drawBusStop(ctx, W, H, glowAlpha) {
+    const sx    = W * STOP_X_FRAC;
+    const gndY  = H * ROAD_TOP_FRAC;
+    const topY  = gndY - 78;
+    const a     = glowAlpha;
+    const col   = a > 0
+      ? `rgb(${Math.round(lerp(90,245,a))},${Math.round(lerp(90,166,a))},${Math.round(lerp(90,35,a))})`
+      : '#505055';
+
+    // Halo
+    if (a > 0) {
+      const g = ctx.createRadialGradient(sx, topY, 0, sx, topY, 65);
+      g.addColorStop(0, `rgba(245,166,35,${a * 0.18})`);
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.fillRect(sx - 65, topY - 15, 130, 90);
+    }
+
+    // Poste
+    ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(sx, gndY); ctx.lineTo(sx, topY); ctx.stroke();
+
+    // Teto
+    ctx.fillStyle   = a > 0 ? '#251800' : '#191919';
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(sx - 30, topY - 8, 60, 9, 2); ctx.fill(); ctx.stroke();
+
+    // Banco
+    ctx.fillStyle = '#282828';
+    ctx.beginPath(); ctx.roundRect(sx - 24, gndY - 22, 48, 6, 2); ctx.fill();
+    ctx.fillStyle = '#202020';
+    ctx.beginPath(); ctx.rect(sx - 20, gndY - 16, 5, 16); ctx.rect(sx + 15, gndY - 16, 5, 16); ctx.fill();
+
+    // Rótulo
+    ctx.fillStyle = col; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('BUS',  sx, topY - 14);
+    ctx.fillText('STOP', sx, topY - 4);
+    ctx.textAlign = 'left';
+  }
+
+  // ── drawPerson ────────────────────────────────────────────────────────────────
+  function drawPerson(ctx, W, H, state, animT) {
+    const sx   = W * STOP_X_FRAC;
+    const gndY = H * ROAD_TOP_FRAC;
+    const px   = sx - 22;
+    const feet = gndY;
+    const headR = 9;
+    const headY = feet - 48;
+    const bodyY2 = feet - 13;
+    const waistY = headY + headR + (bodyY2 - headY - headR) * 0.6;
+
+    const alpha = state === 'boarding' ? Math.max(0, 1 - animT * 2.5) : 1;
+    ctx.globalAlpha = alpha;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(px, feet, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+
+    // Cabeça
+    ctx.fillStyle = '#c4a06e'; ctx.strokeStyle = '#9a7845'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(px, headY, headR, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Corpo
+    ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px, headY + headR); ctx.lineTo(px, bodyY2); ctx.stroke();
+
+    // Pernas
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, bodyY2); ctx.lineTo(px - 7, feet);
+    ctx.moveTo(px, bodyY2); ctx.lineTo(px + 7, feet);
+    ctx.stroke();
+
+    // Braços
+    const now = performance.now() / 1000;
+    ctx.lineWidth = 2;
+    if (state === 'waving') {
+      ctx.strokeStyle = '#cccccc';
+      ctx.beginPath(); ctx.moveTo(px, waistY); ctx.lineTo(px - 11, waistY + 9); ctx.stroke();
+      const wave = Math.sin(now * 9) * 7;
+      ctx.beginPath(); ctx.moveTo(px, waistY); ctx.lineTo(px + 16, waistY - 12 + wave); ctx.stroke();
+    } else if (state === 'tap') {
+      ctx.strokeStyle = '#cccccc';
+      ctx.beginPath(); ctx.moveTo(px, waistY); ctx.lineTo(px - 11, waistY + 9); ctx.stroke();
+      ctx.strokeStyle = '#f5a623';
+      ctx.beginPath(); ctx.moveTo(px, waistY); ctx.lineTo(px + 20, waistY - 6); ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#cccccc';
+      ctx.beginPath();
+      ctx.moveTo(px, waistY); ctx.lineTo(px - 11, waistY + 9);
+      ctx.moveTo(px, waistY); ctx.lineTo(px + 11, waistY + 9);
+      ctx.stroke();
+    }
+
+    // Expressão
+    ctx.lineWidth = 1.5;
+    if (state === 'sad') {
+      ctx.strokeStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(px, headY + 3, 4, 0.25*Math.PI, 0.75*Math.PI, false); ctx.stroke();
+      ctx.fillStyle = '#5577ff';
+      ctx.beginPath(); ctx.ellipse(px - 3, headY + 6, 1.5, 3, 0, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(px + 4, headY + 6, 1.5, 3, 0, 0, Math.PI*2); ctx.fill();
+    } else if (state === 'tap' || state === 'boarding') {
+      ctx.strokeStyle = '#22c55e';
+      ctx.beginPath(); ctx.arc(px, headY, 4, Math.PI + 0.25*Math.PI, -0.25*Math.PI, false); ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#666';
+      ctx.beginPath(); ctx.moveTo(px - 3, headY + 2); ctx.lineTo(px + 3, headY + 2); ctx.stroke();
+    }
+
+    // Cartão RFID quando toca
+    if (state === 'tap') {
+      ctx.fillStyle = '#f5a623'; ctx.strokeStyle = '#c47f00'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(px + 13, waistY - 14, 18, 11, 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#000'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('RFID', px + 22, waistY - 6); ctx.textAlign = 'left';
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // ── drawBus ───────────────────────────────────────────────────────────────────
+  function drawBus(ctx, W, H, busX, variant, alertAlpha) {
+    if (busX > W + 12 || busX < -BUS_W - 12) return;
+
+    const roadY = H * ROAD_TOP_FRAC;
+    const by    = roadY - BUS_H - 1;
+    const bx    = busX;
+
+    // Sombra
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(bx + BUS_W/2, roadY + 2, BUS_W * 0.44, 5, 0, 0, Math.PI*2); ctx.fill();
+
+    // Carroceria
+    ctx.fillStyle   = variant === 'after' ? '#18355a' : '#282832';
+    ctx.strokeStyle = variant === 'after' ? '#265080' : '#36364a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, BUS_W, BUS_H, 4); ctx.fill(); ctx.stroke();
+
+    // Faixa do teto
+    ctx.fillStyle = variant === 'after' ? '#10253f' : '#1c1c26';
+    ctx.beginPath(); ctx.roundRect(bx + 2, by - 3, BUS_W - 4, 7, 2); ctx.fill();
+
+    // Janelas laterais (3)
+    const wc = variant === 'after' ? 'rgba(74,158,255,0.18)' : 'rgba(255,255,255,0.08)';
+    const ws = variant === 'after' ? 'rgba(74,158,255,0.35)' : 'rgba(255,255,255,0.15)';
+    ctx.fillStyle = wc; ctx.strokeStyle = ws; ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath(); ctx.roundRect(bx + 12 + i * 26, by + 8, 21, 16, 2); ctx.fill(); ctx.stroke();
+    }
+
+    // Para-brisa (lado esquerdo = frente do ônibus que vai para a esquerda)
+    ctx.beginPath(); ctx.roundRect(bx + 4, by + 6, 11, 22, 2); ctx.fill(); ctx.stroke();
+
+    // Farol
+    ctx.fillStyle = variant === 'after' ? '#ddeeff' : '#999999';
+    ctx.beginPath(); ctx.ellipse(bx + 6, by + BUS_H - 10, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    // Lanterna traseira
+    ctx.fillStyle = '#cc3333';
+    ctx.beginPath(); ctx.ellipse(bx + BUS_W - 6, by + BUS_H - 10, 3, 4, 0, 0, Math.PI*2); ctx.fill();
+
+    // Rodas
+    ctx.lineWidth = 1.5;
+    for (const wx of [bx + 18, bx + BUS_W - 18]) {
+      ctx.fillStyle = '#111'; ctx.strokeStyle = '#3a3a3a';
+      ctx.beginPath(); ctx.arc(wx, roadY, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2a2a2a';
+      ctx.beginPath(); ctx.arc(wx, roadY, 3.5, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Plaquinha da linha
+    ctx.fillStyle = variant === 'after' ? '#1a3d70' : '#222230';
+    ctx.beginPath(); ctx.roundRect(bx + BUS_W/2 - 17, by + 3, 34, 13, 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('110 UnB', bx + BUS_W/2, by + 13); ctx.textAlign = 'left';
+
+    // Badge de alerta (só HERMES)
+    if (alertAlpha > 0) {
+      const bcy = by - 30;
+      const bcx = bx + BUS_W/2 - 44;
+
+      ctx.globalAlpha = alertAlpha;
+
+      // Halo
+      const g = ctx.createRadialGradient(bx + BUS_W/2, bcy + 12, 0, bx + BUS_W/2, bcy + 12, 70);
+      g.addColorStop(0, 'rgba(245,166,35,0.22)'); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.fillRect(bcx - 10, bcy - 10, 108, 50);
+
+      // Badge
+      ctx.fillStyle = '#f5a623'; ctx.strokeStyle = '#c47f00'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(bcx, bcy, 88, 24, 12); ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = '#000'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('♿ Embarque', bcx + 44, bcy + 16); ctx.textAlign = 'left';
+
+      // Seta tracejada para o ônibus
+      ctx.strokeStyle = 'rgba(245,166,35,0.7)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(bcx + 44, bcy + 24); ctx.lineTo(bcx + 44, by - 1); ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── drawRipple ────────────────────────────────────────────────────────────────
+  function drawRipple(ctx, x, y, progress) {
+    for (let i = 0; i < 3; i++) {
+      const p = Math.max(0, progress - i * 0.18);
+      if (p <= 0) continue;
+      const r = 38 * easeOut(p);
+      const a = Math.max(0, 1 - p) * 0.75;
+      ctx.strokeStyle = `rgba(245,166,35,${a})`; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+
+  // ── drawSignalPulse ───────────────────────────────────────────────────────────
+  function drawSignalPulse(ctx, fromX, toX, y, t) {
+    const dist = toX - fromX;
+    ctx.strokeStyle = 'rgba(245,166,35,0.85)'; ctx.lineWidth = 2;
+    ctx.setLineDash([14, 10]);
+    ctx.lineDashOffset = -(t * dist * 1.4);
+    ctx.beginPath();
+    ctx.moveTo(fromX, y);
+    ctx.lineTo(fromX + dist * Math.min(1, t * 2.2), y);
+    ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+
+  // ── drawLabel ─────────────────────────────────────────────────────────────────
+  function drawLabel(ctx, W, H, text, yFrac, color, alpha) {
+    if (alpha <= 0.01) return;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(text, W / 2, H * yFrac); ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+
+  // ── drawWaitClock ─────────────────────────────────────────────────────────────
+  function drawWaitClock(ctx, W, H, alpha) {
+    if (alpha <= 0.01) return;
+    const cx = W * 0.75, cy = H * 0.26, r = 22;
+    ctx.globalAlpha = alpha;
+
+    ctx.fillStyle = '#160808'; ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // Ponteiros (marcando um horário "errado"/atrasado)
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 10, cy + 6); ctx.stroke();
+
+    // Tique-taque visual (ponteiro dos segundos girando)
+    const angle = (performance.now() / 1000) * Math.PI * 2 - Math.PI / 2;
+    ctx.strokeStyle = 'rgba(239,68,68,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(angle)*16, cy + Math.sin(angle)*16); ctx.stroke();
+
+    ctx.fillStyle = '#ef4444'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('+32 min', cx, cy + r + 15);
+    ctx.font = '10px monospace'; ctx.fillStyle = '#cc3333';
+    ctx.fillText('espera', cx, cy + r + 27);
+    ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  }
+
+  // ── renderBefore ─────────────────────────────────────────────────────────────
+  function renderBefore(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    drawBackground(ctx, W, H);
+    drawBusStop(ctx, W, H, 0);
+
+    // Estado da pessoa
+    let personState = 'waiting';
+    if (t > 0.40 && t < 0.56) personState = 'waving';
+    else if (t > 0.56)         personState = 'sad';
+    drawPerson(ctx, W, H, personState, 0);
+
+    // Posição do ônibus: velocidade constante, passa sem parar
+    let busX = W + 15;
+    if (t > 0.08 && t < 0.85) busX = lerp(W + 15, -BUS_W - 15, (t - 0.08) / 0.77);
+    else if (t >= 0.85)        busX = -BUS_W - 15;
+    drawBus(ctx, W, H, busX, 'before', 0);
+
+    // Relógio de espera
+    const clockA = fadeIn(t, 0.60, 0.72) * fadeOut(t, 0.88, 0.97);
+    drawWaitClock(ctx, W, H, clockA);
+
+    // Labels
+    const missA = fadeIn(t, 0.56, 0.64) * fadeOut(t, 0.82, 0.90);
+    drawLabel(ctx, W, H, '✗  Ônibus passou — solicitação não identificada', 0.94, '#ef4444', missA);
+
+    const waitA = fadeIn(t, 0.01, 0.10) * fadeOut(t, 0.36, 0.44);
+    drawLabel(ctx, W, H, 'Aguardando ônibus no horário previsto…', 0.94, '#555', waitA);
+  }
+
+  // ── renderAfter ──────────────────────────────────────────────────────────────
+  function renderAfter(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const sx    = W * STOP_X_FRAC;
+    const roadY = H * ROAD_TOP_FRAC;
+
+    // Glow da parada após toque
+    const stopGlow = t > 0.08 ? fadeIn(t, 0.08, 0.20) * (t < 0.88 ? 1 : fadeOut(t, 0.88, 0.97)) : 0;
+
+    drawBackground(ctx, W, H);
+    drawBusStop(ctx, W, H, stopGlow);
+
+    // Estado da pessoa
+    let personState = 'waiting', personAnimT = 0;
+    if (t > 0.06 && t < 0.22)  personState = 'tap';
+    else if (t > 0.72 && t < 0.85) { personState = 'boarding'; personAnimT = (t - 0.72) / 0.13; }
+    drawPerson(ctx, W, H, personState, personAnimT);
+
+    // Ripple RFID
+    const rippleP = t > 0.06 && t < 0.32 ? (t - 0.06) / 0.26 : 0;
+    if (rippleP > 0) drawRipple(ctx, sx, roadY - 28, rippleP);
+
+    // Pulso de sinal
+    const pulseT = t > 0.20 && t < 0.44 ? (t - 0.20) / 0.24 : 0;
+    if (pulseT > 0) drawSignalPulse(ctx, sx + 28, W * 0.86, roadY - BUS_H - 8, pulseT);
+
+    // Badge de alerta no ônibus
+    const alertA = t > 0.36 ? fadeIn(t, 0.36, 0.50) * (t < 0.88 ? 1 : fadeOut(t, 0.88, 0.96)) : 0;
+
+    // Posição do ônibus: desacelera ao chegar, para, depois acelera ao sair
+    const stopAtX = sx - BUS_W * 0.5;
+    let busX = W + 15;
+    if (t > 0.10 && t < 0.60) {
+      busX = lerp(W + 15, stopAtX, easeOut((t - 0.10) / 0.50));
+    } else if (t >= 0.60 && t < 0.74) {
+      busX = stopAtX; // parado no ponto
+    } else if (t >= 0.74 && t < 0.96) {
+      busX = lerp(stopAtX, -BUS_W - 15, easeIn((t - 0.74) / 0.22));
+    } else if (t >= 0.96) {
+      busX = -BUS_W - 15;
+    }
+    drawBus(ctx, W, H, busX, 'after', alertA);
+
+    // Labels
+    const tapA = fadeIn(t, 0.06, 0.16) * fadeOut(t, 0.28, 0.38);
+    drawLabel(ctx, W, H, '📡  Solicitação enviada ao servidor', 0.94, '#f5a623', tapA);
+
+    const alertLabelA = fadeIn(t, 0.40, 0.50) * fadeOut(t, 0.62, 0.70);
+    drawLabel(ctx, W, H, '🚌  Alerta de embarque assistido recebido pelo motorista', 0.94, '#f5a623', alertLabelA);
+
+    const doneA = fadeIn(t, 0.78, 0.86) * fadeOut(t, 0.91, 0.97);
+    drawLabel(ctx, W, H, '✓  Embarque assistido concluído', 0.94, '#22c55e', doneA);
+  }
+
+  // ── drawRouteBackground ───────────────────────────────────────────────────────
+  function drawRouteBackground(ctx, W, H) {
+    const ry = H * ROUTE_YFRAC;
+    ctx.fillStyle = '#080b12'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#161618'; ctx.fillRect(0, ry, W, H - ry);
+    ctx.strokeStyle = '#2c2c34'; ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(W, ry); ctx.stroke();
+    STOPS_X.forEach(sx => {
+      ctx.strokeStyle = '#383840'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx, ry - 20); ctx.lineTo(sx, ry + 4); ctx.stroke();
+      ctx.fillStyle = '#484850';
+      ctx.beginPath(); ctx.rect(sx - 6, ry - 22, 12, 4); ctx.fill();
+    });
+  }
+
+  // ── drawPassengersAtStop ──────────────────────────────────────────────────────
+  function drawPassengersAtStop(ctx, sx, routeY, count, color) {
+    const n = Math.min(count, 6);
+    for (let i = 0; i < n; i++) {
+      const px = sx - 9 + (i % 3) * 9;
+      const py = routeY - 34 - Math.floor(i / 3) * 11;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (count > 6) {
+      ctx.fillStyle = color; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(`+${count - 6}`, sx, routeY - 58); ctx.textAlign = 'left';
+    }
+  }
+
+  // ── drawMiniBus ───────────────────────────────────────────────────────────────
+  function drawMiniBus(ctx, x, routeY, bodyColor, accentColor, label, badgeText) {
+    if (x > 535 || x < -MBUS_W - 8) return;
+    const by = routeY - MBUS_H;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.beginPath(); ctx.ellipse(x + MBUS_W/2, routeY + 1, MBUS_W * 0.42, 3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = bodyColor; ctx.strokeStyle = accentColor; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x, by, MBUS_W, MBUS_H, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.beginPath(); ctx.rect(x + 3, by + 3, 8, 7); ctx.rect(x + 14, by + 3, 8, 7); ctx.fill();
+    ctx.fillStyle = '#aaa'; ctx.font = 'bold 7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + MBUS_W/2, routeY + 11); ctx.textAlign = 'left';
+    if (badgeText) {
+      ctx.fillStyle = '#f5a623'; ctx.strokeStyle = '#c47f00'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.roundRect(x + MBUS_W/2 - 14, by - 14, 28, 11, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#000'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(badgeText, x + MBUS_W/2, by - 6); ctx.textAlign = 'left';
+    }
+  }
+
+  // ── drawHeadwayLabel ──────────────────────────────────────────────────────────
+  function drawHeadwayLabel(ctx, x1, x2, routeY, text, color) {
+    if (x2 <= x1 + 20 || x1 < -40 || x2 > 560) return;
+    const cx = (x1 + x2) / 2, y = routeY + 26;
+    ctx.strokeStyle = color + '66'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x1 + MBUS_W, y); ctx.lineTo(cx - 18, y);
+    ctx.moveTo(cx + 18, y);     ctx.lineTo(x2, y);
+    ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath(); ctx.roundRect(cx - 18, y - 7, 36, 13, 4); ctx.fill();
+    ctx.fillStyle = color; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(text, cx, y + 3); ctx.textAlign = 'left';
+  }
+
+  // ── drawGtfsPulse ─────────────────────────────────────────────────────────────
+  function drawGtfsPulse(ctx, W, H, routeY) {
+    const pulse = (Math.sin(performance.now() / 300) + 1) / 2;
+    STOPS_X.forEach(sx => {
+      ctx.strokeStyle = `rgba(245,166,35,${pulse * 0.28})`;
+      ctx.lineWidth = 1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(sx, routeY - 22); ctx.lineTo(sx, routeY - 48); ctx.stroke();
+      ctx.fillStyle = `rgba(245,166,35,${pulse * 0.55})`;
+      ctx.beginPath(); ctx.arc(sx, routeY - 50, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+    const lc = `rgb(${Math.round(lerp(34,245,pulse))},${Math.round(lerp(197,166,pulse))},${Math.round(lerp(94,35,pulse))})`;
+    ctx.fillStyle = lc; ctx.font = '10px sans-serif';
+    ctx.fillText('● GTFS-Realtime ativo', 10, 14);
+  }
+
+  // ── renderRouteBefore ─────────────────────────────────────────────────────────
+  function renderRouteBefore(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const ry = H * ROUTE_YFRAC;
+    ctx.clearRect(0, 0, W, H);
+    drawRouteBackground(ctx, W, H);
+
+    const bAx = lerp(510, -35, t);
+    const bBx = lerp(400, -35, t * 1.18);
+    const bCx = lerp(210, -35, t * 0.78);
+    const gap  = Math.max(0, bBx - bCx);
+
+    STOPS_X.forEach((sx, i) => {
+      const inGap   = sx > bCx + 28 && sx < bBx - 28;
+      const bunched = sx < bBx + 55 && sx > bAx - 28;
+      let count, color;
+      if (bunched) {
+        count = Math.max(0, Math.round(t * 1.5));
+        color = count > 2 ? '#f97316' : '#f5a623';
+      } else if (inGap) {
+        count = Math.min(6, Math.round(t * gap / 62));
+        color = count >= 5 ? '#ef4444' : count >= 3 ? '#f97316' : '#f5a623';
+      } else {
+        count = Math.min(3, Math.round(t * 2));
+        color = '#f5a623';
+      }
+      drawPassengersAtStop(ctx, sx, ry, count, color);
+    });
+
+    drawMiniBus(ctx, bCx, ry, '#1e2a3a', '#304060', 'C', null);
+    drawMiniBus(ctx, bBx, ry, '#1e2a3a', '#304060', 'B', null);
+    drawMiniBus(ctx, bAx, ry, '#1e2a3a', '#304060', 'A', null);
+
+    if (bAx > 10 && bBx > 10) {
+      const hw1 = Math.max(1, Math.round((bAx - bBx) / 570 * 35));
+      drawHeadwayLabel(ctx, bBx, bAx, ry, `${hw1}min`, hw1 < 5 ? '#ef4444' : '#f97316');
+    }
+    if (bBx > 10 && bCx > 10) {
+      const hw2 = Math.max(1, Math.round((bBx - bCx) / 570 * 35));
+      drawHeadwayLabel(ctx, bCx, bBx, ry, `${hw2}min`, hw2 > 18 ? '#ef4444' : '#f97316');
+    }
+
+    ctx.fillStyle = 'rgba(239,68,68,0.7)'; ctx.font = '10px sans-serif';
+    ctx.fillText('Bunching: ônibus se acumulam', 10, 14);
+  }
+
+  // ── renderRouteAfter ──────────────────────────────────────────────────────────
+  function renderRouteAfter(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const ry = H * ROUTE_YFRAC;
+    ctx.clearRect(0, 0, W, H);
+    drawRouteBackground(ctx, W, H);
+    drawGtfsPulse(ctx, W, H, ry);
+
+    const bAx = lerp(510, -35, t);
+    let bBx, bCx;
+    if (t < 0.22) {
+      bBx = lerp(390, -35, t * 1.08);
+      bCx = lerp(220, -35, t * 0.92);
+    } else {
+      bBx = bAx - 145;
+      bCx = bAx - 290;
+    }
+
+    STOPS_X.forEach(sx => {
+      const count = Math.min(2, Math.round(t * 1.5));
+      drawPassengersAtStop(ctx, sx, ry, count, '#22c55e');
+    });
+
+    const showDispatch = t > 0.22 && t < 0.42;
+    drawMiniBus(ctx, bCx, ry, '#0f2a1a', '#1a6040', 'C', null);
+    drawMiniBus(ctx, bBx, ry, '#0f2a1a', '#1a6040', 'B', showDispatch ? '⚡ adj' : null);
+    drawMiniBus(ctx, bAx, ry, '#0f2a1a', '#1a6040', 'A', null);
+
+    if (bAx > 10 && bBx > 10) drawHeadwayLabel(ctx, bBx, bAx, ry, '~10min', '#22c55e');
+    if (bBx > 10 && bCx > 10) drawHeadwayLabel(ctx, bCx, bBx, ry, '~10min', '#22c55e');
+
+    const dispA = fadeIn(t, 0.22, 0.30) * fadeOut(t, 0.36, 0.44);
+    if (dispA > 0) {
+      ctx.globalAlpha = dispA;
+      ctx.fillStyle = '#f5a623'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('⚡ HERMES: ajuste de headway detectado', W / 2, H * 0.88);
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── Loop ─────────────────────────────────────────────────────────────────────
+  const cBefore      = document.getElementById('c-before');
+  const cAfter       = document.getElementById('c-after');
+  const cRouteBefore = document.getElementById('c-route-before');
+  const cRouteAfter  = document.getElementById('c-route-after');
+  const startTime = performance.now();
+
+  function tick() {
+    const t = ((performance.now() - startTime) % CYCLE) / CYCLE;
+    renderBefore(cBefore, t);
+    renderAfter(cAfter, t);
+    renderRouteBefore(cRouteBefore, t);
+    renderRouteAfter(cRouteAfter, t);
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
