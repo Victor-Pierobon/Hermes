@@ -171,6 +171,26 @@ hardware (opcional), polimento e pitch.
 ✅ **Fim do Marco 4:** encostar o cartão dispara o alerta, e o botão continua como
 backup silencioso.
 
+### ✅ CONCLUÍDO — como ficou na prática
+
+Funciona de ponta a ponta (cartão → Pi → POST → motorista) e sobe sozinho no boot.
+Alguns pontos saíram diferentes do plano original — fica o registro real:
+
+- **Gravação do SD:** feita por `dd` (o Raspberry Pi Imager não rodou bem no
+  Arch/Wayland). Sem pré-config; wi-fi/SSH configurados no primeiro boot.
+- **Leitor:** `rfid/rfid_reader.py` lê só o UID (`read_id`) e faz POST em
+  `/api/rfid`. É resiliente: erro de rede não derruba o loop (avisa e continua).
+- **Autostart:** `rfid/instalar_no_pi.sh` cria um serviço systemd (`hermes-rfid`)
+  que sobe no boot e reinicia se cair — assim, no dia, é só ligar o Pi na tomada,
+  sem teclado nem tela.
+- **Rede (a parte mais traiçoeira):** PC e Pi no **hotspot do celular**. Aprendizados:
+  liberar a porta no firewall do PC (`ufw allow 5000/tcp`); usar o **IP direto** do
+  PC no `SERVER_URL` (o nome `.local`/mDNS só resolveu por IPv6, e o servidor é
+  IPv4); transferir o script com `curl -o` (com `wget` o log ia parar dentro do
+  arquivo). Detalhes completos no [`handoff.md`](handoff.md) → "Marco 4 concluído".
+- **Pendência de blindagem (Marco 6):** fixar IP estático no PC para o hotspot,
+  caso o PC reinicie no dia e mude de IP.
+
 ---
 
 ## Marco 5 — Polimento visual e dados

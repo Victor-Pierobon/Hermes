@@ -6,14 +6,17 @@ Estado do projeto ao fim da sessão de desenvolvimento inicial.
 
 ## O que foi construído
 
-Marcos 1–3, 5, 7, 8 e 9 completos. O software roda 100% no notebook, sem hardware.
-**110 testes passando** (`pytest tests/ -v`).
+Marcos 1–5, 7, 8 e 9 completos. O software roda 100% no notebook, e o **Marco 4
+(Raspberry Pi + RC522) está integrado e validado de ponta a ponta**, com autostart
+no boot. **114 testes passando** (`pytest tests/ -v`).
 
 ### Arquivos do projeto
 
 | Arquivo | O que faz |
 |---|---|
-| `backend/app.py` | Flask + SocketIO. 5 rotas HTML, 1 endpoint REST (`/api/rfid`), 3 eventos SocketIO. |
+| `backend/app.py` | Flask + SocketIO. 5 rotas HTML, `/api/data`, `/api/rfid` (POST), `/rfid/<arquivo>` (download p/ o Pi), 3 eventos SocketIO. |
+| `rfid/rfid_reader.py` | Script do Pi: lê o UID (RC522) e faz POST `/api/rfid`. Debounce, timeout curto, resiliente a queda de rede. |
+| `rfid/instalar_no_pi.sh` | Gera e instala o serviço systemd `hermes-rfid` (autostart no boot). |
 | `frontend/demo.html` | **Tela do pitch**: parada à esquerda, motorista à direita. Carrega `parada.js` + `motorista.js`. |
 | `frontend/parada.html` | Tela isolada da parada (projeção separada). |
 | `frontend/motorista.html` | Painel isolado do motorista (projeção separada). |
@@ -24,7 +27,7 @@ Marcos 1–3, 5, 7, 8 e 9 completos. O software roda 100% no notebook, sem hardw
 | `frontend/static/js/motorista.js` | Criar/resolver/cancelar cartões, bipe Web Audio API, expiração 90s, confirmar. |
 | `data/transit_data.json` | 4 linhas reais do DF (110/0.111/107/160), 3 paradas, formato GTFS-friendly. |
 | `tests/conftest.py` | Fixtures: `app`, `client`, `socket_client`, `two_socket_clients`. |
-| `tests/test_routes.py` | 35 testes — rotas HTTP, páginas HTML, `/api/rfid`, `/versus`, `/demanda`. |
+| `tests/test_routes.py` | 39 testes — rotas HTTP, páginas HTML, `/api/rfid`, `/rfid/<arquivo>`, `/versus`, `/demanda`. |
 | `tests/test_events.py` | 27 testes — eventos SocketIO, broadcast para 2 clientes, RFID via POST. |
 | `tests/test_helpers.py` | 25 testes — `_find_stop_name`, `_build_payload` (UUID, ISO8601, fallback). |
 | `tests/test_data.py` | 23 testes — integridade do JSON, IDs únicos, campos obrigatórios. |
@@ -112,31 +115,45 @@ O servidor está com virtualenv criado e dependências instaladas.
 
 ---
 
+## Marco 4 concluído — Raspberry Pi + RC522 (integrado e validado)
+
+Fluxo completo funcionando: **cartão → Pi lê o UID → POST `/api/rfid` → servidor
+emite o evento → painel do motorista acende em tempo real**. Testado de ponta a
+ponta e após `sudo reboot` (sobe sozinho).
+
+### Hardware (bring-up)
+- SO gravado no SD via `dd` (o Raspberry Pi Imager não rodou bem no Arch/Wayland).
+- SPI habilitado (`raspi-config`). RC522 ligado e validado com leitura de UID.
+- **Pinout RC522 → Pi (pinos físicos):** SDA→24, SCK→23, MOSI→19, MISO→21,
+  RST→22, GND→6, 3.3V→1. IRQ não conecta. Alimentar em **3.3V**, nunca 5V.
+- Pasta do projeto no Pi: `~/hermes` (venv em `~/hermes/venv` com `mfrc522 RPi.GPIO requests`).
+
+### Integração (`rfid/rfid_reader.py`)
+- Lê só o UID (`read_id`, nunca grava) e faz POST com `{uid, stop_id}`.
+- Endereço do servidor por env (`SERVER_URL`); debounce + timeout curto; erro de
+  rede não derruba o loop (avisa e continua) — robustez de palco.
+
+### Autostart no boot (`rfid/instalar_no_pi.sh`)
+- Cria o serviço systemd `hermes-rfid`: `After=network-online.target`,
+  `Restart=always`, `Environment=SERVER_URL=...`. Roda em segundo plano (nenhum
+  terminal abre). Verificar: `systemctl status hermes-rfid` / `journalctl -u hermes-rfid -f`.
+
+### Rede e lições aprendidas (montagem real: PC Arch + hotspot do celular)
+- PC e Pi no hotspot do celular (`10.116.31.0/24`): PC `10.116.31.40`, Pi `10.116.31.191`.
+- Liberar o firewall do PC: `sudo ufw allow 5000/tcp` (senão o POST não chega).
+- **Usar o IP direto no `SERVER_URL`**, não `nitrov.local`: nessa rede o mDNS só
+  resolveu por IPv6 e o servidor é IPv4-only.
+- **Transferir sem SSH:** o servidor serve os arquivos em `/rfid/<arquivo>`. No Pi,
+  baixar com `curl -fsSL ... -o arquivo` (com **`wget` o log vinha gravado dentro
+  do arquivo** e quebrava a execução).
+
+### Pendência de blindagem (Marco 6)
+- Fixar **IP estático no PC** para o hotspot, para sobreviver a um reboot do PC
+  no dia (NetworkManager → conexão → IPv4 manual).
+- Ensaiar na rede final (atenção a isolamento de clientes em alguns hotspots).
+- O **botão da tela** permanece como plano B infalível.
+
 ## O que falta
-
-### Marco 4 — Hardware Raspberry Pi + RC522
-
-O **endpoint `/api/rfid` já existe e funciona** — testado via `curl`. O Pi só precisa fazer o POST.
-
-Criar `rfid/rfid_reader.py`:
-```python
-import time, requests
-import RPi.GPIO as GPIO
-from mfrc522 import SimpleMFRC522
-
-SERVER_URL = "http://<IP_DO_NOTEBOOK>:5000/api/rfid"
-reader = SimpleMFRC522()
-
-while True:
-    uid, _ = reader.read()
-    requests.post(SERVER_URL, json={"uid": str(uid), "stop_id": "parada_w3_sul_502"})
-    print(f"[RFID] UID={uid} enviado")
-    time.sleep(2)  # debounce
-```
-
-Pinout RC522 → Pi: `SDA→GPIO8, SCK→GPIO11, MOSI→GPIO10, MISO→GPIO9, GND→GND, RST→GPIO25, 3.3V→3.3V`
-
-Testar 20 leituras seguidas antes do dia da apresentação.
 
 ### Marco 6 — Pitch e blindagem
 

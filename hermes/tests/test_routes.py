@@ -121,6 +121,22 @@ class TestApiData:
         assert len(ids) == len(set(ids))
 
 
+# ── GET /rfid/<arquivo> (download para o Raspberry Pi) ────────────────────────
+
+class TestRfidFileDownload:
+    def test_reader_script_returns_200(self, client):
+        assert client.get("/rfid/rfid_reader.py").status_code == 200
+
+    def test_reader_script_is_python(self, client):
+        assert b"SimpleMFRC522" in client.get("/rfid/rfid_reader.py").data
+
+    def test_installer_returns_200(self, client):
+        assert client.get("/rfid/instalar_no_pi.sh").status_code == 200
+
+    def test_unknown_file_returns_404(self, client):
+        assert client.get("/rfid/nao_existe.py").status_code == 404
+
+
 # ── POST /api/rfid ────────────────────────────────────────────────────────────
 
 class TestApiRfid:

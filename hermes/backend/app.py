@@ -74,6 +74,13 @@ def api_data():
     return jsonify(TRANSIT_DATA)
 
 
+@app.route("/rfid/<path:filename>")
+def rfid_files(filename):
+    """Serve os arquivos do leitor para download direto no Raspberry Pi, sem SSH.
+    No Pi: `curl -O http://<ip-do-pc>:5000/rfid/rfid_reader.py`."""
+    return send_from_directory(BASE_DIR / "rfid", filename)
+
+
 @app.route("/api/rfid", methods=["POST"])
 def api_rfid():
     body = request.get_json(silent=True) or {}
