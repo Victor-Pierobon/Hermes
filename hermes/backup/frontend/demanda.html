@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HERMES — Demanda em Horário de Pico</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    body { overflow-y: auto; }
+
+    .dem-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dem-title { font-size: 16px; font-weight: 700; }
+    .dem-back  { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+    .dem-back:hover { color: var(--text); }
+
+    .dem-layout {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      padding: 14px 24px 16px;
+      gap: 0;
+    }
+
+    .d-panel { padding: 0 12px; }
+
+    .v-tag {
+      display: inline-block;
+      font-size: 10px; font-weight: 800;
+      letter-spacing: .12em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 20px; margin-bottom: 4px;
+    }
+    .v-tag-before { background: rgba(100,100,100,.18); color: #777; border: 1px solid #444; }
+    .v-tag-after  { background: rgba(245,166,35,.15); color: var(--accent); border: 1px solid var(--accent); }
+
+    .d-panel h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+
+    canvas {
+      width: 100%; height: auto; display: block;
+      border-radius: 8px; border: 1px solid var(--border); background: #080b12;
+    }
+
+    .d-stats { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .d-stat  { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+
+    .d-metric { margin-top: 8px; padding: 8px 14px; border-radius: var(--radius); font-size: 12px; }
+    .d-metric-before { background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.35); color: #ef4444; }
+    .d-metric-after  { background: rgba(34,197,94,.07);  border: 1px solid rgba(34,197,94,.35);  color: var(--green); }
+
+    .d-divider {
+      display: flex; align-items: flex-start;
+      padding-top: 80px; padding-left: 8px; padding-right: 8px;
+    }
+    .vs-badge {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 50%; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800; color: var(--text-muted);
+      letter-spacing: .04em; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="dem-header">
+    <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" />
+    <span class="dem-title">Mapa de Demanda — Horário de Pico</span>
+    <a href="/versus" class="dem-back">← Comparação</a>
+  </header>
+
+  <div class="dem-layout">
+
+    <div class="d-panel">
+      <span class="v-tag v-tag-before">Hoje — Escala Fixa</span>
+      <h2>Frota constante, demanda variável</h2>
+      <canvas id="c-demand-before" width="560" height="380"></canvas>
+      <div class="d-stats">
+        <div class="d-stat"><span>📋</span><span>Escala definida semanas antes, sem dados de demanda real</span></div>
+        <div class="d-stat"><span>🚌</span><span>Frota fixa independente do horário de pico</span></div>
+      </div>
+      <div class="d-metric d-metric-before">
+        ~45% dos passageiros aguardam o próximo ônibus no pico
+      </div>
+    </div>
+
+    <div class="d-divider"><div class="vs-badge">VS</div></div>
+
+    <div class="d-panel">
+      <span class="v-tag v-tag-after">Com HERMES + GTFS-Realtime</span>
+      <h2>Frota ajustada à demanda em tempo real</h2>
+      <canvas id="c-demand-after" width="560" height="380"></canvas>
+      <div class="d-stats">
+        <div class="d-stat"><span>📡</span><span>GTFS-Realtime monitora demanda por parada em tempo real</span></div>
+        <div class="d-stat"><span>⚡</span><span>Despacho dinâmico: ônibus extras nos corredores de pico</span></div>
+      </div>
+      <div class="d-metric d-metric-after">
+        Frota +80% no pico — capacidade alinhada à demanda, sem overflow
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  // ── Constantes ────────────────────────────────────────────────────────────────
+  const ROUTES = [
+    { label: 'Asa Norte',  angle: -75, color: '#4a9eff' },
+    { label: 'Asa Sul',    angle: 105, color: '#a855f7' },
+    { label: 'Ceilândia',  angle: 195, color: '#f59e0b' },
+    { label: 'Sobradinho', angle:  15, color: '#06b6d4' },
+  ];
+  const STOP_DISTS    = [60, 110, 158];
+  const DEMAND_CAP    = 4;
+  const CYCLE_DEMANDA = 30000; // 30s por ciclo
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  function lerp(a, b, t)    { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+  function fadeIn(t, s, e)  { return Math.max(0, Math.min(1, (t - s) / (e - s))); }
+  function fadeOut(t, s, e) { return 1 - fadeIn(t, s, e); }
+
+  function smoothstep(e0, e1, x) {
+    const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  // Mapeamento não-linear: foca 60% do ciclo na janela de pico (7h-9h).
+  // Segmentos por fração de t:
+  //   0.00–0.12 →  6h–7h   (3.6s  — calmaria pré-pico)
+  //   0.12–0.75 →  7h–9h   (18.9s — PICO, janela principal)
+  //   0.75–0.90 →  9h–10h  (4.5s  — recuperação)
+  //   0.90–1.00 → 10h–11h  (3.0s  — volta ao normal)
+  function getHour(t) {
+    if (t < 0.12) return lerp(6.0, 7.0, t / 0.12);
+    if (t < 0.75) return lerp(7.0, 9.0, (t - 0.12) / 0.63);
+    if (t < 0.90) return lerp(9.0, 10.0, (t - 0.75) / 0.15);
+    return               lerp(10.0, 11.0, (t - 0.90) / 0.10);
+  }
+
+  function fmtHour(h) {
+    const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+
+  // Apenas pico da manhã — uma narrativa limpa, sem correria
+  function peakIntensity(hour) {
+    return smoothstep(6.8, 7.5, hour) * (1 - smoothstep(8.5, 9.2, hour));
+  }
+
+  function stopPos(cx, cy, angleDeg, dist) {
+    const r = angleDeg * Math.PI / 180;
+    return { x: cx + Math.cos(r) * dist, y: cy + Math.sin(r) * dist };
+  }
+
+  // ── 1. drawBackground ────────────────────────────────────────────────────────
+  function drawBackground(ctx, W, H, peakI) {
+    ctx.fillStyle = '#07090f'; ctx.fillRect(0, 0, W, H);
+    if (peakI > 0) {
+      ctx.fillStyle = `rgba(239,68,68,${peakI * 0.06})`; ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // ── 2. drawPeakStripe ─────────────────────────────────────────────────────────
+  // Faixa colorida no topo — o sinal mais imediato de "pico ou não"
+  function drawPeakStripe(ctx, W, peakI, variant) {
+    if (peakI < 0.05) return;
+    const color   = variant === 'after' ? `rgba(34,197,94,${peakI * 0.85})`
+                                        : `rgba(239,68,68,${peakI * 0.85})`;
+    const label   = variant === 'after' ? '⚡  HERMES: frota reforçada'
+                                        : '⚠  PICO — capacidade excedida';
+    const textClr = variant === 'after' ? '#d1fae5' : '#fee2e2';
+
+    ctx.fillStyle = color; ctx.fillRect(0, 0, W, 28);
+    ctx.fillStyle = textClr; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(label, W / 2, 18); ctx.textAlign = 'left';
+  }
+
+  // ── 3. drawRouteLines ─────────────────────────────────────────────────────────
+  function drawRouteLines(ctx, cx, cy) {
+    ROUTES.forEach(r => {
+      const end = stopPos(cx, cy, r.angle, STOP_DISTS[2] + 12);
+      ctx.strokeStyle = r.color + '40'; ctx.lineWidth = 3; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(end.x, end.y); ctx.stroke();
+    });
+  }
+
+  // ── 4. drawHub ────────────────────────────────────────────────────────────────
+  function drawHub(ctx, cx, cy, peakI, variant) {
+    const pulse  = (Math.sin(performance.now() / 350) + 1) / 2;
+    const glowC  = variant === 'after'  ? `rgba(34,197,94,${peakI * pulse * 0.30})`
+                 : peakI > 0            ? `rgba(239,68,68,${peakI * pulse * 0.25})`
+                 :                        null;
+    if (glowC) {
+      ctx.fillStyle = glowC;
+      ctx.beginPath(); ctx.arc(cx, cy, 44, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = '#12141e';
+    ctx.strokeStyle = variant === 'after' && peakI > 0.3 ? '#22c55e'
+                    : peakI > 0.3                        ? '#ef4444'
+                    :                                       '#3a3a5a';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, 26, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#ccc'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Rodoviária', cx, cy + 8);
+
+    // Badge de despacho ativo no hub (AFTER apenas)
+    if (variant === 'after' && peakI > 0.35) {
+      ctx.globalAlpha = Math.min(1, (peakI - 0.35) / 0.3);
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('+frota', cx, cy + 44);
+      ctx.globalAlpha = 1;
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // ── 5. drawStopWithDemand ─────────────────────────────────────────────────────
+  // Parada = círculo pequeno fixo. Demanda = barra vertical separada (cresce para cima).
+  function drawStopWithDemand(ctx, x, y, routeColor, demand, variant, peakI) {
+    const maxH    = 38, barW = 7;
+    const overflow = demand > DEMAND_CAP;
+    const fillRatio = Math.min(demand / (DEMAND_CAP + 3), 1);
+    const barH    = maxH * fillRatio;
+    const bx      = x - barW / 2;
+    const baseY   = y - 9; // barra começa logo acima do círculo
+
+    // Trilho de fundo da barra
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.roundRect(bx, baseY - maxH, barW, maxH, 2); ctx.fill();
+
+    // Linha de capacidade (onde o overflow começa)
+    const capFrac = DEMAND_CAP / (DEMAND_CAP + 3);
+    const capY    = baseY - maxH * capFrac;
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(bx - 3, capY); ctx.lineTo(bx + barW + 3, capY); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+
+    // Preenchimento da barra
+    const color = variant === 'after'                     ? '#22c55e'
+                : overflow                                 ? '#ef4444'
+                : demand > DEMAND_CAP * 0.65              ? '#f97316'
+                :                                           '#22c55e';
+
+    // Glow pulsante quando há overflow (BEFORE)
+    if (variant === 'before' && overflow) {
+      const p = (Math.sin(performance.now() / 160) + 1) / 2;
+      ctx.fillStyle = `rgba(239,68,68,${0.12 + p * 0.18})`;
+      ctx.beginPath(); ctx.roundRect(bx - 5, baseY - maxH - 5, barW + 10, maxH + 10, 4); ctx.fill();
+    }
+
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.roundRect(bx, baseY - barH, barW, barH, 2); ctx.fill();
+
+    // Contagem de overflow acima da barra (BEFORE)
+    if (variant === 'before' && overflow) {
+      const n = Math.min(Math.round(demand - DEMAND_CAP), 9);
+      ctx.fillStyle = '#ef4444'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(`+${n}`, x, baseY - maxH - 5);
+      ctx.textAlign = 'left';
+    }
+
+    // Círculo fixo da parada (pequeno, para os ônibus aparecerem)
+    ctx.fillStyle = routeColor + 'cc'; ctx.strokeStyle = routeColor; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // Check sobre o círculo (AFTER durante pico)
+    if (variant === 'after' && peakI > 0.3) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y); ctx.lineTo(x, y + 3); ctx.lineTo(x + 4, y - 3);
+      ctx.stroke();
+    }
+  }
+
+  // ── 6. drawBus ────────────────────────────────────────────────────────────────
+  // Ônibus maiores (28×15) com estado visual claro
+  function drawBus(ctx, cx, cy, angleDeg, progress, routeColor, state) {
+    if (progress < 0.02 || progress > 0.98) return;
+    const maxDist = STOP_DISTS[2] + 18;
+    const rad = angleDeg * Math.PI / 180;
+    const bx  = cx + Math.cos(rad) * maxDist * progress;
+    const by  = cy + Math.sin(rad) * maxDist * progress;
+    const bw = 28, bh = 15;
+
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(rad);
+
+    const fillClr  = state === 'full'  ? '#ef4444'
+                   : state === 'extra' ? '#22c55e'
+                   :                     routeColor;
+    const strokeClr = state === 'extra' ? '#22c55e' : fillClr;
+
+    // Borda pulsante no ônibus extra
+    if (state === 'extra') {
+      const p = (Math.sin(performance.now() / 200) + 1) / 2;
+      ctx.strokeStyle = `rgba(34,197,94,${0.4 + p * 0.6})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(-bw/2 - 3, -bh/2 - 3, bw + 6, bh + 6, 5); ctx.stroke();
+    }
+
+    ctx.fillStyle = fillClr + 'dd'; ctx.strokeStyle = strokeClr; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(-bw/2, -bh/2, bw, bh, 3); ctx.fill(); ctx.stroke();
+
+    if (state === 'full') {
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 7px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('LOTADO', 0, 3);
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.beginPath();
+      ctx.rect(-10, -4, 6, 4); ctx.rect(-1, -4, 6, 4); ctx.rect(6, -4, 6, 4);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // ── 7. drawGtfsDataLines ─────────────────────────────────────────────────────
+  // Linhas pulsantes no AFTER — representa o feed de dados ativo
+  function drawGtfsDataLines(ctx, cx, cy) {
+    ROUTES.forEach(r => {
+      const end  = stopPos(cx, cy, r.angle, STOP_DISTS[2]);
+      const p    = (Math.sin(performance.now() / 280 + r.angle * 0.05) + 1) / 2;
+      ctx.strokeStyle = `rgba(34,197,94,${p * 0.22})`; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 10]); ctx.lineDashOffset = -(performance.now() / 60) % 30;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(end.x, end.y); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    });
+  }
+
+  // ── 8. drawClock ─────────────────────────────────────────────────────────────
+  function drawClock(ctx, W, H, hour, peakI) {
+    const isPeak = peakI > 0.3;
+    const bx = W - 106, by = 34, bw = 98, bh = isPeak ? 42 : 28;
+    ctx.fillStyle = isPeak ? 'rgba(40,10,10,0.92)' : 'rgba(10,10,20,0.88)';
+    ctx.strokeStyle = isPeak ? '#ef4444' : '#2a2a3a'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = isPeak ? '#fca5a5' : '#94a3b8';
+    ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(fmtHour(hour) + 'h', bx + bw/2, by + 20);
+    if (isPeak) {
+      ctx.fillStyle = '#f87171'; ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('HORÁRIO DE PICO', bx + bw/2, by + 36);
+    }
+    ctx.textAlign = 'left';
+  }
+
+  // ── 9. drawFleetBadge ────────────────────────────────────────────────────────
+  function drawFleetBadge(ctx, W, H, count, peakI, variant) {
+    const isPeak = peakI > 0.3;
+    const color  = variant === 'after' && isPeak ? '#22c55e' : '#64748b';
+    const bx = 10, by = 34, bw = 104, bh = 42;
+
+    ctx.fillStyle = 'rgba(10,12,20,0.88)';
+    ctx.strokeStyle = isPeak && variant === 'after' ? '#22c55e44' : '#2a2a3a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.font = `bold 22px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(`🚌 ${count}`, bx + bw/2, by + 24);
+    ctx.font = '9px sans-serif'; ctx.fillStyle = color + 'cc';
+    ctx.fillText('ônibus ativos', bx + bw/2, by + 37);
+    ctx.textAlign = 'left';
+  }
+
+  // ── 10. drawOverflowBadge ────────────────────────────────────────────────────
+  function drawOverflowBadge(ctx, W, H, total) {
+    if (total < 1) return;
+    const n = Math.round(total);
+    const bx = 10, by = H - 46, bw = 150, bh = 34;
+    ctx.fillStyle = 'rgba(80,0,0,0.85)';
+    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fca5a5'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`✗  ~${n} aguardando na parada`, bx + bw/2, by + 14);
+    ctx.fillStyle = '#f87171'; ctx.font = '9px sans-serif';
+    ctx.fillText('frota insuficiente no pico', bx + bw/2, by + 27);
+    ctx.textAlign = 'left';
+  }
+
+  // ── 11. drawDispatchBadge ────────────────────────────────────────────────────
+  function drawDispatchBadge(ctx, W, H, peakI) {
+    if (peakI < 0.35) return;
+    const a = Math.min(1, (peakI - 0.35) / 0.2);
+    const bx = 10, by = H - 46, bw = 190, bh = 34;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(0,40,20,0.85)';
+    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#86efac'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('⚡  HERMES: despacho ativo', bx + bw/2, by + 14);
+    ctx.fillStyle = '#4ade80'; ctx.font = '9px sans-serif';
+    ctx.fillText('ônibus extras em todas as rotas', bx + bw/2, by + 27);
+    ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  }
+
+  // ── drawRouteLabels ───────────────────────────────────────────────────────────
+  function drawRouteLabels(ctx, cx, cy) {
+    ROUTES.forEach(r => {
+      const pos = stopPos(cx, cy, r.angle, STOP_DISTS[2] + 22);
+      ctx.fillStyle = r.color + 'cc'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(r.label, pos.x, pos.y);
+    });
+    ctx.textAlign = 'left';
+  }
+
+  // ── renderDemandBefore ────────────────────────────────────────────────────────
+  function renderDemandBefore(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W * 0.5, cy = H * 0.52;
+    const hour  = getHour(t);
+    const peakI = peakIntensity(hour);
+
+    ctx.clearRect(0, 0, W, H);
+    drawBackground(ctx, W, H, peakI);
+    drawPeakStripe(ctx, W, peakI, 'before');
+    drawRouteLines(ctx, cx, cy);
+
+    let overflowTotal = 0;
+
+    ROUTES.forEach((route, ri) => {
+      const progress = (t * 1.1 + ri * 0.25) % 1;
+      const isFull   = peakI > 0.5;
+      drawBus(ctx, cx, cy, route.angle, progress, route.color, isFull ? 'full' : 'normal');
+
+      STOP_DISTS.forEach((dist, si) => {
+        const pos    = stopPos(cx, cy, route.angle, dist);
+        const demand = 1 + (DEMAND_CAP + 4) * peakI * (0.55 + si * 0.28);
+        overflowTotal += Math.max(0, demand - DEMAND_CAP);
+        drawStopWithDemand(ctx, pos.x, pos.y, route.color, demand, 'before', peakI);
+      });
+    });
+
+    drawRouteLabels(ctx, cx, cy);
+    drawHub(ctx, cx, cy, peakI, 'before');
+    drawClock(ctx, W, H, hour, peakI);
+    drawFleetBadge(ctx, W, H, ROUTES.length, peakI, 'before');
+    drawOverflowBadge(ctx, W, H, overflowTotal * 2.8);
+  }
+
+  // ── renderDemandAfter ─────────────────────────────────────────────────────────
+  function renderDemandAfter(canvas, t) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W * 0.5, cy = H * 0.52;
+    const hour       = getHour(t);
+    const peakI      = peakIntensity(hour);
+    const extraBuses = peakI > 0.3;
+    let   fleetCount = ROUTES.length;
+
+    ctx.clearRect(0, 0, W, H);
+    drawBackground(ctx, W, H, peakI * 0.25);
+    drawPeakStripe(ctx, W, peakI, 'after');
+
+    // feed GTFS-RT visível em todas as rotas
+    drawGtfsDataLines(ctx, cx, cy);
+    drawRouteLines(ctx, cx, cy);
+
+    ROUTES.forEach((route, ri) => {
+      const p1 = (t * 1.1 + ri * 0.25) % 1;
+      drawBus(ctx, cx, cy, route.angle, p1, route.color, 'normal');
+
+      if (extraBuses) {
+        const p2 = (p1 + 0.5) % 1;
+        drawBus(ctx, cx, cy, route.angle, p2, route.color, 'extra');
+        fleetCount++;
+      }
+
+      STOP_DISTS.forEach((dist, si) => {
+        const pos    = stopPos(cx, cy, route.angle, dist);
+        // mesma demanda real — mas cap dobrou com ônibus extras
+        const rawDemand = 1 + (DEMAND_CAP + 4) * peakI * (0.55 + si * 0.28);
+        const clampedDemand = extraBuses ? Math.min(rawDemand, DEMAND_CAP * 0.9) : rawDemand;
+        drawStopWithDemand(ctx, pos.x, pos.y, route.color, clampedDemand, 'after', peakI);
+      });
+    });
+
+    drawRouteLabels(ctx, cx, cy);
+    drawHub(ctx, cx, cy, peakI, 'after');
+    drawClock(ctx, W, H, hour, peakI);
+    drawFleetBadge(ctx, W, H, fleetCount, peakI, 'after');
+    drawDispatchBadge(ctx, W, H, peakI);
+  }
+
+  // ── Loop ─────────────────────────────────────────────────────────────────────
+  const cDemBefore = document.getElementById('c-demand-before');
+  const cDemAfter  = document.getElementById('c-demand-after');
+  const startDem   = performance.now();
+
+  function tickDemanda() {
+    const t = ((performance.now() - startDem) % CYCLE_DEMANDA) / CYCLE_DEMANDA;
+    renderDemandBefore(cDemBefore, t);
+    renderDemandAfter(cDemAfter, t);
+    requestAnimationFrame(tickDemanda);
+  }
+
+  requestAnimationFrame(tickDemanda);
+  </script>
+</body>
+</html>

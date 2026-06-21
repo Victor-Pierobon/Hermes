@@ -147,6 +147,43 @@ ponta e após `sudo reboot` (sobe sozinho).
   baixar com `curl -fsSL ... -o arquivo` (com **`wget` o log vinha gravado dentro
   do arquivo** e quebrava a execução).
 
+### Troubleshooting: "estava funcionando e parou" — sem tela no Pi (resolvido 20/06/2026)
+
+**Sintoma:** a leitura do cartão deixou de chegar ao painel, sem nenhuma mudança no
+código. **Causa nº 1:** o **IP do PC mudou**. O serviço `hermes-rfid` guarda o
+`SERVER_URL` passado na instalação; quando o PC pega outro IP (hotspot/DHCP em outra
+sessão), o Pi fica postando para um endereço morto e as leituras se perdem em silêncio.
+No caso real, o PC migrou de `10.116.31.40` para `10.171.61.40` (outro hotspot) e o
+serviço continuava apontando para o IP antigo.
+
+**Diagnóstico pela rede, a partir do PC** (o Pi não tem teclado/tela; a ferramenta é o SSH):
+```bash
+# 1. servidor no ar e em qual IP?
+hostname -I
+ss -tlnp | grep 5000                      # deve listar 0.0.0.0:5000
+# 2. achar o Pi e confirmar SSH (usuário do Pi = victor; chave SSH do PC já instalada)
+getent ahostsv4 raspberrypi.local         # IPv4 atual do Pi
+# 3. entrar e ver para onde o serviço aponta
+ssh victor@raspberrypi.local
+systemctl show hermes-rfid -p Environment              # SERVER_URL gravado
+journalctl -u hermes-rfid -n 20 --no-pager             # "servidor inacessível"?
+```
+Se o `SERVER_URL` diferir do `hostname -I` do PC, é esse o problema.
+
+**Correção (no Pi, via SSH):** reinstalar apontando para o **nome mDNS** em vez de IP
+fixo — sobrevive a futuras trocas de IP, desde que `nitrov.local` resolva em IPv4 (vale
+em roteador/hotspot normal; ver ressalva de IPv6 acima):
+```bash
+cd ~/hermes && bash instalar_no_pi.sh http://nitrov.local:5000/api/rfid
+```
+
+**Verificar ponta a ponta sem o cartão** (painel `/demo?demo=true` aberto no PC):
+```bash
+curl -s -X POST http://nitrov.local:5000/api/rfid \
+  -H "Content-Type: application/json" \
+  -d '{"uid":"TESTE","stop_id":"parada_w3_sul_502"}'   # deve voltar {"status":"ok"}
+```
+
 ### Pendência de blindagem (Marco 6)
 - Fixar **IP estático no PC** para o hotspot, para sobreviver a um reboot do PC
   no dia (NetworkManager → conexão → IPv4 manual).

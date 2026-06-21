@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HERMES — Demo</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <style>
+    .demo-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-topbar">
+    <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" style="height:24px;" />
+  </div>
+  <div class="demo-layout">
+
+    <!-- PARADA -->
+    <section class="panel" aria-label="Painel da parada">
+      <p class="panel-label">Parada</p>
+      <h1 class="panel-title">W3 Sul 502</h1>
+
+      <label for="route-select">Linha desejada</label>
+      <select id="route-select" aria-label="Selecione a linha"></select>
+
+      <button id="btn-request" class="btn-request" aria-label="Solicitar embarque assistido">
+        Solicitar Embarque Assistido
+      </button>
+
+      <button id="btn-cancel" class="btn-cancel" aria-label="Cancelar solicitação">
+        Cancelar solicitação
+      </button>
+
+      <div
+        id="status-parada"
+        class="status-parada"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
+    </section>
+
+    <!-- MOTORISTA -->
+    <section class="panel" aria-label="Painel do motorista">
+      <p class="panel-label">Motorista</p>
+      <h1 class="panel-title">Painel de Alertas</h1>
+
+      <div
+        id="alerts-area"
+        class="alerts-area"
+        aria-live="assertive"
+        aria-label="Alertas de embarque assistido"
+      >
+        <p id="no-alerts" class="no-alerts">Nenhuma solicitação ativa.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/static/js/parada.js"></script>
+  <script src="/static/js/motorista.js"></script>
+</body>
+</html>

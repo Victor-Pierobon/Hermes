@@ -27,28 +27,15 @@
     card.dataset.id = p.id;
     card.setAttribute("role", "alert");
     card.innerHTML = `
-      <div class="alert-row">
-        <span class="alert-ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="4" r="1"></circle>
-            <path d="M18 19h-4a2 2 0 0 1-2-2v-4a2 2 0 0 0-2-2H6"></path>
-            <circle cx="8" cy="19" r="2"></circle>
-            <path d="M12 13a4 4 0 0 1 4 4"></path>
-          </svg>
-        </span>
-        <span class="alert-title">Embarque assistido</span>
+      <div class="alert-route">♿ Embarque assistido</div>
+      <div class="alert-stop">${_esc(p.stop_name)}</div>
+      <div class="alert-meta">
         <span class="badge badge-pending" data-badge>Pendente</span>
-      </div>
-      <div class="alert-info">
-        <span class="alert-stop">${_esc(p.stop_name)}</span>
-        <span class="alert-sep">·</span>
-        <span class="alert-line">${_esc(p.route_name)}</span>
-      </div>
-      <div class="alert-foot">
-        <span class="badge ${p.origin === 'rfid' ? 'badge-rfid' : 'badge-button'}">${p.origin === 'rfid' ? 'RFID' : 'PC'}</span>
+        <span class="badge ${p.origin === 'rfid' ? 'badge-rfid' : 'badge-button'}">${p.origin === 'rfid' ? 'RFID' : 'Parada'}</span>
+        <span class="badge" style="background:rgba(245,166,35,.15);color:var(--accent)">${_esc(p.route_name)}</span>
         <span class="alert-time">${time}</span>
-        <button class="btn-confirm" data-confirm="${_esc(p.id)}">Confirmar</button>
       </div>
+      <button class="btn-confirm" data-confirm="${_esc(p.id)}">Confirmar atendimento</button>
     `;
 
     card.querySelector("[data-confirm]").addEventListener("click", () => {

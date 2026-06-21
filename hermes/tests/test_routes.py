@@ -70,10 +70,21 @@ class TestHTMLPages:
     def test_demo_returns_200(self, client):
         assert client.get("/demo").status_code == 200
 
-    def test_demo_contains_both_panels(self, client):
+    def test_demo_contains_three_windows(self, client):
         body = client.get("/demo").data
-        assert b"btn-request" in body
-        assert b"alerts-area" in body
+        assert b"pax-count" in body      # janela 1: contador de passageiros
+        assert b"route-map" in body      # janela 2: mapa da rota
+        assert b"alerts-area" in body    # janela 3: alertas RFID
+
+    def test_demo_contains_plan_b_button(self, client):
+        # botão plano B: solicitar embarque pelo PC se o RFID falhar
+        assert b"btn-plan-b" in client.get("/demo").data
+
+    def test_demo_has_no_login(self, client):
+        # login e dashboard foram removidos da tela de bordo
+        body = client.get("/demo").data
+        assert b"login-container" not in body
+        assert b"dashboard-container" not in body
 
 
 # ── GET /api/data ─────────────────────────────────────────────────────────────

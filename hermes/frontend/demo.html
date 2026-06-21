@@ -3,53 +3,67 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HERMES — Demo</title>
+  <title>HERMES — Painel de Bordo</title>
   <link rel="stylesheet" href="/static/css/style.css" />
-  <style>
-    .demo-topbar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--border);
-    }
-  </style>
 </head>
 <body>
+  <!-- BARRA DE SIMULAÇÃO GLOBAL -->
   <div class="demo-topbar">
-    <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" style="height:24px;" />
+    <div class="demo-topbar-left">
+      <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" style="height:22px;" />
+      <span style="font-weight: 700; font-size: 13px; letter-spacing: 0.05em; color: var(--text-muted);">PAINEL DE BORDO — AMBIENTE DE SIMULAÇÃO</span>
+    </div>
+    <div class="demo-topbar-right">
+      <span class="rfid-status" id="rfid-status">
+        <span class="rfid-dot"></span> Leitor RFID conectado
+      </span>
+    </div>
   </div>
-  <div class="demo-layout">
 
-    <!-- PARADA -->
-    <section class="panel" aria-label="Painel da parada">
-      <p class="panel-label">Parada</p>
-      <h1 class="panel-title">W3 Sul 502</h1>
+  <div class="bordo-layout">
 
-      <label for="route-select">Linha desejada</label>
-      <select id="route-select" aria-label="Selecione a linha"></select>
+    <!-- JANELA 1: CONTADOR DE PASSAGEIROS -->
+    <section class="panel bordo-window count-window" aria-label="Passageiros a bordo">
+      <p class="panel-label">A bordo</p>
+      <h2 class="bordo-window-title">Passageiros no ônibus</h2>
 
-      <button id="btn-request" class="btn-request" aria-label="Solicitar embarque assistido">
-        Solicitar Embarque Assistido
-      </button>
+      <div class="count-main">
+        <div class="count-stat">
+          <div class="count-number">
+            <span id="pax-count">24</span><span class="count-cap">/ 44</span>
+          </div>
+          <p class="count-stat-label">Total a bordo</p>
+        </div>
+        <div class="count-divider" aria-hidden="true"></div>
+        <div class="count-stat count-stat-priority">
+          <div class="count-number">
+            <span id="priority-count">5</span>
+          </div>
+          <p class="count-stat-label">Prioritários</p>
+        </div>
+      </div>
 
-      <button id="btn-cancel" class="btn-cancel" aria-label="Cancelar solicitação">
-        Cancelar solicitação
-      </button>
-
-      <div
-        id="status-parada"
-        class="status-parada"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      ></div>
+      <div class="count-bar" aria-hidden="true">
+        <div class="count-bar-fill" id="pax-bar"></div>
+      </div>
+      <p class="count-sub">Ocupação <strong id="pax-pct">55%</strong> · Embarques assistidos hoje: <strong id="assist-count">0</strong></p>
     </section>
 
-    <!-- MOTORISTA -->
-    <section class="panel" aria-label="Painel do motorista">
-      <p class="panel-label">Motorista</p>
-      <h1 class="panel-title">Painel de Alertas</h1>
+    <!-- JANELA 2: ALERTAS (RFID + plano B) -->
+    <section class="panel bordo-window alerts-window driver-panel" aria-label="Painel do motorista">
+      <div class="alerts-header">
+        <div>
+          <p class="panel-label">Motorista</p>
+          <h2 class="bordo-window-title">Alertas de embarque</h2>
+        </div>
+        <button id="btn-plan-b" class="btn-plan-b" title="Plano B — simular uma solicitação pelo PC caso o leitor RFID falhe">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          Solicitar (plano B)
+        </button>
+      </div>
 
       <div
         id="alerts-area"
@@ -61,10 +75,128 @@
       </div>
     </section>
 
+    <!-- JANELA 3: NAVEGAÇÃO (faixa inteira abaixo) -->
+    <section class="panel bordo-window map-window" aria-label="Navegação da rota">
+      <div class="map-titlebar">
+        <div>
+          <p class="panel-label">Navegação · rota em tempo real</p>
+          <h2 class="bordo-window-title">110 UnB / Rodoviária</h2>
+        </div>
+        <span class="gps-tag"><span class="gps-dot"></span> GPS ativo</span>
+      </div>
+
+      <div class="map-canvas-wrap nav-wrap">
+        <svg id="route-map" viewBox="0 0 360 340" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Mapa de navegação da linha 110">
+          <!-- terreno -->
+          <rect x="0" y="0" width="360" height="340" fill="#181b22" />
+
+          <!-- rio -->
+          <path d="M-20,40 C 70,80 60,180 30,300"
+                fill="none" stroke="#15314c" stroke-width="34" stroke-linecap="round" opacity="0.9" />
+
+          <!-- parques -->
+          <rect x="232" y="206" width="150" height="150" rx="16" fill="#16301f" />
+
+          <!-- quarteirões (textura leve) -->
+          <g fill="#1f232c" opacity="0.8">
+            <rect x="108" y="36"  width="70" height="56" rx="4" />
+            <rect x="218" y="36"  width="64" height="56" rx="4" />
+            <rect x="108" y="118" width="70" height="56" rx="4" />
+            <rect x="232" y="118" width="64" height="56" rx="4" />
+          </g>
+
+          <!-- malha viária secundária (poucas, mais grossas) -->
+          <g stroke="#2b2e38" stroke-width="4" fill="none" stroke-linecap="round">
+            <path d="M30,40 C 110,150 100,240 120,330" />
+            <path d="M10,108 C 130,104 250,112 350,106" />
+            <line x1="300" y1="30" x2="300" y2="320" />
+            <line x1="120" y1="40" x2="120" y2="206" />
+          </g>
+
+          <!-- via da rota (asfalto sob o trajeto) -->
+          <path id="map-route-d"
+                d="M70,300 L70,232 Q70,206 96,206 L168,206 Q194,206 194,180 L194,118 Q194,92 220,92 L300,92"
+                fill="none" stroke="#3a3e48" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+
+          <!-- trajeto da navegação (casing → linha → brilho → percorrido) -->
+          <path d="M70,300 L70,232 Q70,206 96,206 L168,206 Q194,206 194,180 L194,118 Q194,92 220,92 L300,92"
+                class="route-casing" />
+          <path id="route-path"
+                d="M70,300 L70,232 Q70,206 96,206 L168,206 Q194,206 194,180 L194,118 Q194,92 220,92 L300,92"
+                class="route-line" />
+          <path d="M70,300 L70,232 Q70,206 96,206 L168,206 Q194,206 194,180 L194,118 Q194,92 220,92 L300,92"
+                class="route-sheen" />
+          <!-- porção já percorrida (cinza) -->
+          <path id="route-traveled"
+                d="M70,300 L70,232 Q70,206 96,206 L168,206 Q194,206 194,180 L194,118 Q194,92 220,92 L300,92"
+                class="route-traveled" />
+
+          <!-- nomes de via -->
+          <text x="130" y="224" class="map-street" text-anchor="middle">AV. W3 SUL</text>
+          <text x="210" y="150" class="map-street" text-anchor="middle" transform="rotate(-90 210 150)">EIXO ROD.</text>
+
+          <!-- paradas ao longo do trajeto -->
+          <g class="map-stop-group">
+            <circle cx="70" cy="262" r="5" /><circle cx="70" cy="262" r="2.2" class="hole" />
+            <circle cx="132" cy="206" r="5" /><circle cx="132" cy="206" r="2.2" class="hole" />
+            <circle cx="194" cy="112" r="5" /><circle cx="194" cy="112" r="2.2" class="hole" />
+          </g>
+
+          <!-- terminais -->
+          <g class="map-terminal">
+            <circle cx="70" cy="300" r="7" />
+            <circle cx="300" cy="92" r="7" />
+          </g>
+          <text x="70"  y="322" class="map-label" text-anchor="middle">Rodoviária</text>
+          <text x="300" y="80"  class="map-label" text-anchor="middle">UnB</text>
+
+          <!-- parada-alvo (W3 Sul 502) com pino estilo nav -->
+          <g id="target-stop" transform="translate(194,150)">
+            <circle class="ring" cx="0" cy="0" r="11" />
+            <path class="pin" d="M0,0 C -10,-12 -15,-21 0,-30 C 15,-21 10,-12 0,0 Z" />
+            <circle class="pin-dot" cx="0" cy="-20" r="5" />
+            <text x="0" y="-38" class="map-label map-label-target" text-anchor="middle">W3 Sul 502</text>
+          </g>
+
+          <!-- posição do veículo (seta de navegação) -->
+          <g id="nav-pos" transform="translate(70,300)">
+            <circle class="acc" r="19" />
+            <g id="nav-arrow-rot">
+              <path class="arrow" d="M14,0 L-9,-9 L-4,0 L-9,9 Z" />
+            </g>
+          </g>
+        </svg>
+
+        <!-- INTERFACE DE NAVEGAÇÃO (overlay) -->
+        <div class="nav-banner" id="nav-banner">
+          <div class="nav-banner-dist" id="nav-dist">600 m</div>
+          <div class="nav-banner-icon" id="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <div class="nav-banner-text">
+            <div class="nav-instr" id="nav-instr">Parada monitorada à frente</div>
+            <div class="nav-sub" id="nav-sub">W3 Sul 502 · Linha 110</div>
+          </div>
+        </div>
+
+        <div class="nav-eta">
+          <div class="nav-eta-min"><span id="nav-eta-min">8</span> min</div>
+          <div class="nav-eta-detail"><span id="nav-eta-km">3,2 km</span> · chegada <span id="nav-eta-arrival">14:32</span></div>
+        </div>
+
+        <div class="nav-speed">
+          <strong id="nav-speed">38</strong><span>km/h</span>
+        </div>
+      </div>
+    </section>
+
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="/static/js/parada.js"></script>
   <script src="/static/js/motorista.js"></script>
+  <script src="/static/js/bordo.js"></script>
 </body>
 </html>

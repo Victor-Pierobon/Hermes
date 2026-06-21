@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HERMES — Motorista</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="page-layout">
+    <header class="hermes-header">
+      <img src="/static/HermesLogo.png" class="hermes-logo-img" alt="HERMES" />
+    </header>
+
+    <p class="panel-label">Motorista</p>
+    <h1 class="panel-title">Painel de Alertas</h1>
+
+    <div
+      id="alerts-area"
+      class="alerts-area"
+      aria-live="assertive"
+      aria-label="Alertas de embarque assistido"
+    >
+      <p id="no-alerts" class="no-alerts">Nenhuma solicitação ativa.</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="/static/js/motorista.js"></script>
+</body>
+</html>
